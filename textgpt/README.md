@@ -1,41 +1,68 @@
 # TextGPT
 
-TextGPT is a platform offering two AI-powered services:
+TextGPT is a platform that offers two main services:
 
-1. **IQR Code** - Interactive QR codes with context-aware AI chat capabilities
-2. **KIWI** - Smart QR code solution for property and asset management
+1. **IQR (Intelligent QR Code)** - Generate QR codes linked to your content and enable chat interactions through them.
+2. **Kiwi** - Property management service with QR-enabled interactions.
 
 ## Features
 
-- Authentication system with user registration and login
-- Subscription management with different pricing plans
-- QR code generation for both services
-- PDF/context upload for AI training
-- Chat interfaces for interacting with AI through SMS/messaging
-- Dashboard with analytics for both services
+- User authentication and account management
+- Subscription plans for different service tiers
+- PDF and content upload functionality
+- QR code generation and management
+- Chat interfaces for user interactions
+- SMS integration capabilities
 
-## Tech Stack
+## Getting Started
 
-- **Frontend**: Next.js, React, TailwindCSS
-- **Backend**: Next.js API routes and Server Actions
-- **Authentication**: Firebase Auth
-- **Database**: Firebase Firestore
-- **Vector Storage**: Pinecone
-- **Messaging**: Telnyx SMS
-- **Payments**: Stripe
-- **AI**: OpenAI
+### Prerequisites
 
-## Setup
+- Node.js 18.x or higher
+- npm or yarn
 
-1. Clone the repository
-2. Install dependencies with `npm install`
-3. Set up environment variables in `.env.local`
-4. Run development server with `npm run dev`
-5. Build for production with `npm run build`
+### Installation
 
-## Deployment
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/textgpt.git
+cd textgpt
 
-This project is designed to be deployed on Vercel.
+# Install dependencies
+npm install
+# or
+yarn install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your configuration
+
+# Run the development server
+npm run dev
+# or
+yarn dev
+```
+
+### Deployment
+
+This project is configured for deployment on Vercel.
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy to Vercel
+vercel
+```
+
+## Technology Stack
+
+- Next.js for frontend and API routes
+- Firebase for authentication and database
+- Pinecone for vector database
+- Stripe for subscription management
+- OpenAI for chat functionality
+- Telnyx for SMS services (future implementation)
 
 ## Project Structure
 
