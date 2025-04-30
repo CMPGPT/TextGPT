@@ -1,11 +1,14 @@
+"use client";
+
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, QrCode, Home as HomeIcon, ArrowRight, Smartphone, Phone, Menu, X } from "lucide-react";
-import Link from "next/link";
 
 const messageIcon = "https://cdn0.iconfinder.com/data/icons/apple-apps/100/Apple_Messages-1024.png";
 
-const TextGptLanding = () => {
+export default function TextGptLanding() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -55,9 +58,11 @@ const TextGptLanding = () => {
           <a href="#contact" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Contact</a>
           <Link href="/terms" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Terms</Link>
           <Link href="/privacy" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Privacy</Link>
-          <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 hover:scale-105 transition-all duration-300 ease-in-out text-lg">
-            Get Started
-          </Button>
+          <Link href="/coming-soon">
+            <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 hover:scale-105 transition-all duration-300 ease-in-out text-lg">
+              Get Started
+            </Button>
+          </Link>
         </div>
       </nav>
 
@@ -70,9 +75,11 @@ const TextGptLanding = () => {
             <a href="#contact" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Contact</a>
             <Link href="/terms" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Terms</Link>
             <Link href="/privacy" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Privacy</Link>
-            <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 w-full mt-2 py-6 transition-all duration-300 ease-in-out text-lg">
-              Get Started
-            </Button>
+            <Link href="/coming-soon" onClick={toggleMenu}>
+              <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 w-full mt-2 py-6 transition-all duration-300 ease-in-out text-lg">
+                Get Started
+              </Button>
+            </Link>
           </div>
         </div>
       )}
@@ -88,7 +95,7 @@ const TextGptLanding = () => {
               <span className="text-textgpt-300 block mt-2">No App Required.</span>
             </h1>
             <p className="text-xl mb-8 text-white/80">
-              No apps, no downloads—just pure convenience. TextGPT powers your phone's messaging app, helping you stay organized, get answers, and complete tasks effortlessly. It's like having a personal assistant available 24/7, always ready to help with just a text.
+              No apps, no downloads—just pure convenience. TextGPT powers your phone&apos;s messaging app, helping you stay organized, get answers, and complete tasks effortlessly. It&apos;s like having a personal assistant available 24/7, always ready to help with just a text.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <a href="#services">
@@ -96,9 +103,11 @@ const TextGptLanding = () => {
                   Explore Services
                 </Button>
               </a>
-              <Button variant="outline" className="border-textgpt-300 text-black hover:bg-textgpt-300/10 px-8 py-6 w-full sm:w-auto">
-                Learn More
-              </Button>
+              <Link href="/auth/login">
+                <Button variant="outline" className="border-textgpt-300 text-white hover:bg-textgpt-300/10 px-8 py-6 w-full sm:w-auto">
+                  Learn More
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="hidden lg:block relative">
@@ -107,21 +116,28 @@ const TextGptLanding = () => {
 
             <div className="relative bg-white/10 backdrop-blur-lg p-8 rounded-2xl border border-white/20">
               <div className="flex items-center mb-6">
-                <img src={messageIcon} alt="Message" className="w-6 h-6 mr-3" />
+                <Image 
+                  src={messageIcon} 
+                  alt="Message" 
+                  width={24}
+                  height={24}
+                  className="w-6 h-6 mr-3" 
+                  unoptimized
+                />
                 <span className="text-xl font-semibold text-white">TextG.pt Assistant</span>
               </div>
 
               <div className="space-y-4">
                 <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
-                  <p className="text-white text-sm">Hi! I'm planning a dinner party this weekend and would love to make an authentic Italian pasta dish. Any suggestions?</p>
+                  <p className="text-white text-sm">Hi! I&apos;m planning a dinner party this weekend and would love to make an authentic Italian pasta dish. Any suggestions?</p>
                 </div>
 
                 <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
-                  <p className="text-white text-sm">Of course! For a crowd-pleasing dish, I'd recommend a classic Fettuccine Alfredo or Spaghetti alla Carbonara. Which one interests you more? I can share a detailed recipe and some pro tips to make it extra special! 😊</p>
+                  <p className="text-white text-sm">Of course! For a crowd-pleasing dish, I&apos;d recommend a classic Fettuccine Alfredo or Spaghetti alla Carbonara. Which one interests you more? I can share a detailed recipe and some pro tips to make it extra special! 😊</p>
                 </div>
 
                 <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
-                  <p className="text-white text-sm">The Carbonara sounds amazing! I've never made it before. Could you share the recipe?</p>
+                  <p className="text-white text-sm">The Carbonara sounds amazing! I&apos;ve never made it before. Could you share the recipe?</p>
                 </div>
               </div>
             </div>
@@ -134,17 +150,24 @@ const TextGptLanding = () => {
 
             <div className="relative bg-white/10 backdrop-blur-lg p-4 rounded-2xl border border-white/20">
               <div className="flex items-center mb-4">
-                <img src={messageIcon} alt="Message" className="w-5 h-5 mr-2" />
+                <Image 
+                  src={messageIcon} 
+                  alt="Message" 
+                  width={20}
+                  height={20}
+                  className="w-5 h-5 mr-2" 
+                  unoptimized
+                />
                 <span className="text-lg font-semibold text-white">TextG.pt Assistant</span>
               </div>
 
               <div className="space-y-3">
                 <div className="bg-textgpt-300/20 p-2 rounded-lg rounded-tr-none ml-auto w-4/5">
-                  <p className="text-white text-xs">Hi! I'm planning a dinner party this weekend and would love to make an authentic Italian pasta dish. Any suggestions?</p>
+                  <p className="text-white text-xs">Hi! I&apos;m planning a dinner party this weekend and would love to make an authentic Italian pasta dish. Any suggestions?</p>
                 </div>
 
                 <div className="bg-textgpt-200/40 p-2 rounded-lg rounded-tl-none w-4/5">
-                  <p className="text-white text-xs">Of course! For a crowd-pleasing dish, I'd recommend a classic Fettuccine Alfredo or Spaghetti alla Carbonara. Which one interests you more? 😊</p>
+                  <p className="text-white text-xs">Of course! For a crowd-pleasing dish, I&apos;d recommend a classic Fettuccine Alfredo or Spaghetti alla Carbonara. Which one interests you more? 😊</p>
                 </div>
 
                 <div className="bg-textgpt-300/20 p-2 rounded-lg rounded-tr-none ml-auto w-4/5">
@@ -265,7 +288,7 @@ const TextGptLanding = () => {
               About <span className="text-textgpt-300">TextG.pt</span>
             </h2>
             <p className="text-xl text-white/80 max-w-3xl mx-auto">
-              We're revolutionizing business-customer communication through intelligent SMS technology. Our AI platform offers seamless, app-free engagement solutions.
+              We&apos;re revolutionizing business-customer communication through intelligent SMS technology. Our AI platform offers seamless, app-free engagement solutions.
             </p>
           </div>
 
@@ -316,7 +339,7 @@ const TextGptLanding = () => {
               </div>
               <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Our Promise</h3>
               <p className="text-white/70 text-center md:text-left">
-                We're committed to creating frictionless communication solutions that work for businesses of all sizes and their customers.
+                We&apos;re committed to creating frictionless communication solutions that work for businesses of all sizes and their customers.
               </p>
             </div>
           </div>
@@ -352,7 +375,7 @@ const TextGptLanding = () => {
                 </svg>
               </div>
               <h3 className="font-bold mb-2">Email Support</h3>
-              <p className="text-gray-600 mb-4">Send us an email and we'll respond within 24 hours.</p>
+              <p className="text-gray-600 mb-4">Send us an email and we&apos;ll respond within 24 hours.</p>
               <Button className="bg-textgpt-300 hover:bg-textgpt-400 text-white w-full sm:w-auto">Email Us</Button>
             </div>
 
@@ -409,6 +432,4 @@ const TextGptLanding = () => {
       </footer>
     </div>
   );
-};
-
-export default TextGptLanding; 
+} 

@@ -1,26 +1,28 @@
+"use client";
+
 import React from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Lock } from "lucide-react";
 
-const TextGPTPrivacy = () => {
+export default function PrivacyPage() {
   const effectiveDate = "April 26, 2025"; // Example date as mentioned in the policy
 
   return (
     <div className="min-h-screen bg-white">
       <nav className="py-6 px-6 md:px-10 flex justify-between items-center bg-textgpt-200">
-        <Link to="/textgpt" className="flex items-center">
+        <Link href="/" className="flex items-center">
           <MessageSquare size={30} className="text-textgpt-300 mr-2" />
           <span className="text-2xl font-bold text-white">TextG.pt</span>
         </Link>
         <div className="space-x-4">
-          <Link to="/textgpt/terms">
+          <Link href="/terms">
             <Button variant="ghost" className="text-white hover:text-textgpt-300">
               Terms of Service
             </Button>
           </Link>
-          <Link to="/textgpt">
-            <Button variant="outline" className="text-black border-white hover:bg-white/10">
+          <Link href="/">
+            <Button variant="outline" className="text-white border-white hover:bg-white/10">
               Back to Home
             </Button>
           </Link>
@@ -41,7 +43,7 @@ const TextGPTPrivacy = () => {
 
           <h2 className="text-xl font-bold mb-4 text-textgpt-300">1. Introduction</h2>
           <p className="mb-6">
-            Welcome to TextGPT & IQRCodes (referred to collectively as "Service," "we," "us," or "our"). We provide services enabling users to obtain virtual eSIMs ("eSIMs") and utilize Artificial Intelligence ("AI") to manage and respond to text messages associated with those eSIMs. This includes the TextGPT service primarily for individual use and the IQRCodes service focused on business applications, allowing businesses to generate QR codes that trigger AI-powered text interactions with consumers.
+            Welcome to TextGPT & IQRCodes (referred to collectively as &quot;Service,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). We provide services enabling users to obtain virtual eSIMs (&quot;eSIMs&quot;) and utilize Artificial Intelligence (&quot;AI&quot;) to manage and respond to text messages associated with those eSIMs. This includes the TextGPT service primarily for individual use and the IQRCodes service focused on business applications, allowing businesses to generate QR codes that trigger AI-powered text interactions with consumers.
           </p>
           <p className="mb-6">
             This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you register for, subscribe to, or use our Service. Protecting your privacy is paramount to us.
@@ -112,8 +114,8 @@ const TextGPTPrivacy = () => {
             <li>Facilitate the core AI texting functionality (receiving messages, processing content via AI, sending AI-generated replies).</li>
             <li>Enable QR code generation and management for IQRCodes users.</li>
             <li>Deliver customer support and respond to inquiries.</li>
-          </ul>
-          
+            </ul>
+
           <p className="font-semibold mb-2">For AI Functionality:</p>
           <p className="mb-4">
             To process the content of incoming text messages using AI algorithms to generate relevant and contextual responses. This processing is automated and necessary for the core function of the Service.
@@ -125,8 +127,8 @@ const TextGPTPrivacy = () => {
             <li>Protect the security and integrity of our Service, data, and users.</li>
             <li>Detect and prevent fraud, abuse, unauthorized access, and violations of our Terms.</li>
             <li>Monitor service performance and stability.</li>
-          </ul>
-          
+            </ul>
+
           <p className="font-semibold mb-2">To Improve and Personalize the Service:</p>
           <p className="mb-4">
             Analyze usage trends (often using aggregated or anonymized data) to understand how users interact with the Service, identify areas for improvement, and develop new features.
@@ -221,7 +223,7 @@ const TextGPTPrivacy = () => {
             To exercise these rights, please contact us using the details below. We will respond in accordance with applicable law and may need to verify your identity.
           </p>
 
-          <h2 className="text-xl font-bold mb-4 text-textgpt-300">9. Children's Privacy</h2>
+          <h2 className="text-xl font-bold mb-4 text-textgpt-300">9. Children&apos;s Privacy</h2>
           <p className="mb-6">
             Our Service is not directed to individuals under the age of 18. We do not knowingly collect Personal Information from children under 18. If we become aware that we have inadvertently collected such information, we will take steps to delete it promptly.
           </p>
@@ -241,11 +243,11 @@ const TextGPTPrivacy = () => {
             If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at:<br />
             Privacy Team<br />
             TextGPT & IQRCodes
-          </p>
-        </div>
+            </p>
+          </div>
 
         <div className="mt-8 text-center">
-          <Link to="/textgpt">
+          <Link href="/">
             <Button className="bg-textgpt-300 hover:bg-textgpt-400 text-black">
               Return to Home
             </Button>
@@ -257,8 +259,8 @@ const TextGPTPrivacy = () => {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between">
             <div className="mb-6 md:mb-0">
-              <Link to="/textgpt" className="flex items-center">
-                <MessageSquare size={24} className="text-textgpt-300 mr-2" />
+              <Link href="/" className="flex items-center">
+            <MessageSquare size={24} className="text-textgpt-300 mr-2" />
                 <span className="text-xl font-bold">TextG.pt</span>
               </Link>
               <p className="mt-4 text-gray-400">
@@ -269,24 +271,24 @@ const TextGPTPrivacy = () => {
               <div>
                 <h3 className="text-lg font-semibold mb-4">Product</h3>
                 <ul className="space-y-2">
-                  <li><Link to="/textgpt" className="text-gray-400 hover:text-white">Features</Link></li>
-                  <li><Link to="/pricing" className="text-gray-400 hover:text-white">Pricing</Link></li>
-                  <li><Link to="/faqs" className="text-gray-400 hover:text-white">FAQs</Link></li>
+                  <li><Link href="/" className="text-gray-400 hover:text-white">Features</Link></li>
+                  <li><Link href="/pricing" className="text-gray-400 hover:text-white">Pricing</Link></li>
+                  <li><Link href="/faqs" className="text-gray-400 hover:text-white">FAQs</Link></li>
                 </ul>
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-4">Company</h3>
                 <ul className="space-y-2">
-                  <li><Link to="/about" className="text-gray-400 hover:text-white">About Us</Link></li>
-                  <li><Link to="/contact" className="text-gray-400 hover:text-white">Contact</Link></li>
-                  <li><Link to="/blog" className="text-gray-400 hover:text-white">Blog</Link></li>
+                  <li><Link href="/about" className="text-gray-400 hover:text-white">About Us</Link></li>
+                  <li><Link href="/contact" className="text-gray-400 hover:text-white">Contact</Link></li>
+                  <li><Link href="/blog" className="text-gray-400 hover:text-white">Blog</Link></li>
                 </ul>
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-4">Legal</h3>
                 <ul className="space-y-2">
-                  <li><Link to="/textgpt/terms" className="text-gray-400 hover:text-white">Terms</Link></li>
-                  <li><Link to="/textgpt/privacy" className="text-gray-400 hover:text-white">Privacy</Link></li>
+                  <li><Link href="/terms" className="text-gray-400 hover:text-white">Terms</Link></li>
+                  <li><Link href="/privacy" className="text-gray-400 hover:text-white">Privacy</Link></li>
                 </ul>
               </div>
             </div>
@@ -298,6 +300,4 @@ const TextGPTPrivacy = () => {
       </footer>
     </div>
   );
-};
-
-export default TextGPTPrivacy; 
+} 

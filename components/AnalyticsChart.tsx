@@ -72,7 +72,25 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
           </BarChart>
         );
       default:
-        return null;
+        // Fallback to line chart instead of returning null
+        return (
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            {dataKeys.map((key, index) => (
+              <Line
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stroke={colors[index % colors.length]}
+                activeDot={{ r: 8 }}
+              />
+            ))}
+          </LineChart>
+        );
     }
   };
 

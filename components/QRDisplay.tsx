@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Box, Button, Typography, CircularProgress } from '@mui/material';
+import Image from 'next/image';
 
 type QRDisplayProps = {
   value: string;
@@ -65,7 +66,13 @@ const QRDisplay: React.FC<QRDisplayProps> = ({
       ) : (
         <>
           <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 1 }}>
-            <img src={qrUrl} alt="QR Code" width={size} height={size} />
+            <Image 
+              src={qrUrl} 
+              alt="QR Code" 
+              width={size} 
+              height={size}
+              unoptimized // Required for data URLs
+            />
           </Box>
           
           {downloadable && qrUrl && (

@@ -2,23 +2,34 @@ import React, { useState } from 'react';
 import { Button, Box, Typography, CircularProgress } from '@mui/material';
 import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 
+// Using these props in component even though ESLint doesn't recognize it
+/* eslint-disable no-unused-vars */
 type UploadPDFProps = {
   onUploadSuccess?: (fileUrl: string, fileName: string) => void;
   onUploadError?: (error: Error) => void;
   serviceType: 'iqr' | 'kiwi';
 };
+/* eslint-enable no-unused-vars */
 
 const UploadPDF: React.FC<UploadPDFProps> = ({ 
-  onUploadSuccess, 
-  onUploadError,
+  onUploadSuccess = () => {}, 
+  onUploadError = () => {},
   serviceType
 }) => {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  // Variables below are used in the UI but ESLint doesn't recognize it
+  /* eslint-disable no-unused-vars */
+  const [fileUrl, setFileUrl] = useState<string>('');
+  const [fileName, setFileName] = useState<string>('');
+  const [error, setError] = useState<Error | null>(null);
+  /* eslint-enable no-unused-vars */
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      setFileName(selectedFile.name);
     }
   };
 
@@ -26,6 +37,7 @@ const UploadPDF: React.FC<UploadPDFProps> = ({
     if (!file) return;
     
     setUploading(true);
+    setError(null);
     
     try {
       // Create form data for upload
@@ -44,15 +56,14 @@ const UploadPDF: React.FC<UploadPDFProps> = ({
       }
       
       const data = await response.json();
+      setFileUrl(data.fileUrl);
       
-      if (onUploadSuccess) {
-        onUploadSuccess(data.fileUrl, file.name);
-      }
-    } catch (error) {
-      if (onUploadError && error instanceof Error) {
-        onUploadError(error);
-      }
-      console.error('Error uploading file:', error);
+      onUploadSuccess(data.fileUrl, fileName);
+    } catch (err) {
+      const uploadError = err instanceof Error ? err : new Error('Unknown error occurred');
+      setError(uploadError);
+      onUploadError(uploadError);
+      console.error('Error uploading file:', uploadError);
     } finally {
       setUploading(false);
       setFile(null);
@@ -95,10 +106,22 @@ const UploadPDF: React.FC<UploadPDFProps> = ({
         
         {file && (
           <Typography variant="body2" sx={{ ml: 2 }}>
-            {file.name}
+            {fileName}
           </Typography>
         )}
       </Box>
+      
+      {error && (
+        <Typography color="error" sx={{ mt: 2 }}>
+          Error: {error.message}
+        </Typography>
+      )}
+      
+      {fileUrl && (
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          Upload successful! File available at: {fileUrl}
+        </Typography>
+      )}
     </Box>
   );
 };
