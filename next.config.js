@@ -13,6 +13,10 @@ const nextConfig = {
 
     return config;
   },
+  // This ensures a consistent behavior with trailing slashes
+  trailingSlash: false,
+  // Output standalone builds for better performance
+  output: 'standalone',
   // Add any additional configuration here
 };
 

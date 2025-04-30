@@ -5,10 +5,31 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, QrCode, Phone, Edit } from "lucide-react";
+import FAQSection from "@/components/common/FAQSection";
 
-const messageIcon = "https://cdn0.iconfinder.com/data/icons/apple-apps/100/Apple_Messages-1024.png";
+const messageIcon = "/icons/message-icon.png";
 
 export default function IQRLanding() {
+  // FAQ data for IQR page
+  const iqrFaqs = [
+    {
+      question: "How do IQR.codes differ from traditional QR codes?",
+      answer: "Unlike traditional QR codes that typically direct users to websites, IQR.codes (Interactive QR Codes) initiate SMS conversations with AI-powered business representatives. When a customer scans an IQR code, they can immediately text questions and receive instant, personalized responses without needing internet connection or downloading any apps."
+    },
+    {
+      question: "How can IQR.codes benefit my business?",
+      answer: "IQR.codes provide 24/7 customer support without requiring additional staff. They enhance customer experience by delivering immediate responses, increase engagement through personalized interactions, improve conversion rates with timely information, and collect valuable customer insights. Plus, they work through native SMS, eliminating barriers like app downloads or internet connectivity."
+    },
+    {
+      question: "Can I customize the AI responses for my business?",
+      answer: "Absolutely! Your IQR.code AI representative is fully customizable. You can train it on your specific business information, FAQs, brand voice, and product details. Our platform includes a simple 'Test Drive' feature that allows you to interact with your AI rep and refine its responses before deploying it to customers."
+    },
+    {
+      question: "Where should I use IQR.codes in my business?",
+      answer: "IQR.codes are versatile and can be placed on business cards, product packaging, invoices, store displays, advertisements, event materials, service follow-ups, and more. Any touchpoint where customers might have questions or need assistance is an excellent opportunity to place an IQR.code."
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-iqr-100 to-black text-iqr-400 flex flex-col">
       {/* Navigation */}
@@ -151,6 +172,9 @@ export default function IQRLanding() {
           </Link>
         </div>
       </div>
+
+      {/* FAQ Section */}
+      <FAQSection faqs={iqrFaqs} variant="iqr" />
 
       {/* Footer */}
       <footer className="bg-iqr-50 py-10 text-iqr-300">

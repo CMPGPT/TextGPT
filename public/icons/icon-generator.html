@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator</title>
+  <style>
+    body { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin: 10px;
+      background: #fff;
+    }
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #FFD166;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #e0b85a;
+    }
+    h1 {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>TextG.pt Icon Generator</h1>
+  
+  <canvas id="canvas192" width="192" height="192"></canvas>
+  <canvas id="canvas512" width="512" height="512"></canvas>
+  <canvas id="canvasApple" width="180" height="180"></canvas>
+  <canvas id="canvasFavicon" width="32" height="32"></canvas>
+  
+  <div class="controls">
+    <button id="download192">Download 192x192 PNG</button>
+    <button id="download512">Download 512x512 PNG</button>
+    <button id="downloadApple">Download Apple Touch Icon</button>
+    <button id="downloadFavicon">Download Favicon</button>
+  </div>
+
+  <script>
+    function drawMessageSquare(ctx, width, height) {
+      // Clear canvas
+      ctx.clearRect(0, 0, width, height);
+      
+      // Calculate scale factor
+      const scaleFactor = Math.min(width, height) / 24;
+      
+      // Save the current context state
+      ctx.save();
+      
+      // Move to center
+      ctx.translate(width / 2, height / 2);
+      
+      // Scale to fit
+      ctx.scale(scaleFactor, scaleFactor);
+      
+      // Center the icon
+      ctx.translate(-12, -12);
+      
+      // Draw message square icon
+      ctx.fillStyle = "#FFD166";
+      ctx.strokeStyle = "#FFD166";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      
+      // Draw the message square path
+      ctx.beginPath();
+      // Draw the message square path (simplified for canvas)
+      ctx.moveTo(3, 3);
+      ctx.lineTo(19, 3);
+      ctx.arc(19, 5, 2, -Math.PI/2, 0, false);
+      ctx.lineTo(21, 15);
+      ctx.arc(19, 15, 2, 0, Math.PI/2, false);
+      ctx.lineTo(7, 17);
+      ctx.lineTo(3, 21);
+      ctx.lineTo(3, 5);
+      ctx.arc(5, 5, 2, Math.PI, -Math.PI/2, false);
+      ctx.closePath();
+      
+      // Fill and stroke
+      ctx.fill();
+      ctx.stroke();
+      
+      // Restore the context
+      ctx.restore();
+    }
+
+    // Setup canvases
+    const canvas192 = document.getElementById('canvas192');
+    const ctx192 = canvas192.getContext('2d');
+    
+    const canvas512 = document.getElementById('canvas512');
+    const ctx512 = canvas512.getContext('2d');
+    
+    const canvasApple = document.getElementById('canvasApple');
+    const ctxApple = canvasApple.getContext('2d');
+    
+    const canvasFavicon = document.getElementById('canvasFavicon');
+    const ctxFavicon = canvasFavicon.getContext('2d');
+
+    // Draw all icons
+    drawMessageSquare(ctx192, 192, 192);
+    drawMessageSquare(ctx512, 512, 512);
+    drawMessageSquare(ctxApple, 180, 180);
+    drawMessageSquare(ctxFavicon, 32, 32);
+
+    // Set up download buttons
+    document.getElementById('download192').addEventListener('click', function() {
+      const link = document.createElement('a');
+      link.download = 'icon-192x192.png';
+      link.href = canvas192.toDataURL('image/png');
+      link.click();
+    });
+
+    document.getElementById('download512').addEventListener('click', function() {
+      const link = document.createElement('a');
+      link.download = 'icon-512x512.png';
+      link.href = canvas512.toDataURL('image/png');
+      link.click();
+    });
+
+    document.getElementById('downloadApple').addEventListener('click', function() {
+      const link = document.createElement('a');
+      link.download = 'apple-touch-icon.png';
+      link.href = canvasApple.toDataURL('image/png');
+      link.click();
+    });
+
+    document.getElementById('downloadFavicon').addEventListener('click', function() {
+      const link = document.createElement('a');
+      link.download = 'favicon.ico';
+      link.href = canvasFavicon.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html> 

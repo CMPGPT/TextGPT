@@ -4,8 +4,29 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Home as HomeIcon, ArrowLeft, ArrowRight, Building, MapPin, Calendar, CheckCircle } from "lucide-react";
+import FAQSection from "@/components/common/FAQSection";
 
 export default function KiwiLanding() {
+  // FAQ data for KIWI page
+  const kiwiFaqs = [
+    {
+      question: "How does Kiwi help real estate agents improve client interactions?",
+      answer: "Kiwi provides an AI-powered SMS assistant that instantly responds to property inquiries, answers common questions, schedules viewings, and delivers property details - all through text messaging. This helps agents save time, respond to leads 24/7, and provide exceptional service without being constantly available themselves."
+    },
+    {
+      question: "What information can potential buyers access through Kiwi?",
+      answer: "Through Kiwi, potential buyers can text to receive property specifications (square footage, bedrooms, bathrooms), pricing details, neighborhood information, photos, virtual tour links, available viewing times, and answers to specific questions about features or amenities - all instantly via SMS."
+    },
+    {
+      question: "Can Kiwi schedule property viewings automatically?",
+      answer: "Yes! Kiwi can manage your availability calendar and allow potential buyers to schedule viewings through simple text commands. When someone texts to schedule a viewing, Kiwi checks your available slots, offers options, confirms appointments, and sends reminders to both you and the potential buyer."
+    },
+    {
+      question: "How do I add properties to the Kiwi platform?",
+      answer: "Adding properties to Kiwi is simple. After creating your account, you can upload property details through our user-friendly dashboard. Input property specifications, upload photos, set viewing availability, and customize the information you want shared. Each property gets its own dedicated text number or QR code that prospects can use to inquire about that specific listing."
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-kiwi-50 via-kiwi-100 to-kiwi-50">
       <nav className="py-6 px-6 md:px-10 flex justify-between items-center relative bg-transparent">
@@ -217,6 +238,9 @@ export default function KiwiLanding() {
           </Link>
         </div>
       </div>
+
+      {/* FAQ Section */}
+      <FAQSection faqs={kiwiFaqs} variant="kiwi" />
 
       <footer className="bg-kiwi-50 py-10 text-white/80">
         <div className="container mx-auto px-6 max-w-7xl">

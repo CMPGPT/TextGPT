@@ -5,8 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, QrCode, Home as HomeIcon, ArrowRight, Smartphone, Phone, Menu, X } from "lucide-react";
+import FAQSection from "@/components/common/FAQSection";
 
-const messageIcon = "https://cdn0.iconfinder.com/data/icons/apple-apps/100/Apple_Messages-1024.png";
+const messageIcon = "/icons/message-icon.png";
 
 export default function TextGptLanding() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -33,6 +34,26 @@ export default function TextGptLanding() {
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  // FAQ data for homepage
+  const homeFaqs = [
+    {
+      question: "What is TextG.pt and how does it work?",
+      answer: "TextG.pt is an AI-powered SMS communication platform that enables interactive text messaging without requiring any app downloads. It uses advanced AI to automatically respond to text messages, helping businesses provide instant support and information to customers through their phone's native messaging app."
+    },
+    {
+      question: "Do I need to download an app to use TextG.pt services?",
+      answer: "No, that's the beauty of TextG.pt! Our service works through your phone's native SMS messaging app. There's no need to download anything - simply text a dedicated number or scan an IQR code to start interacting with our AI-powered service."
+    },
+    {
+      question: "What's the difference between IQR.codes and Kiwi services?",
+      answer: "IQR.codes is our business solution that creates interactive QR codes linking to AI representatives trained on your specific brand information. When scanned, customers can text questions and receive instant, helpful responses. Kiwi is specifically designed for real estate professionals, providing property information and answering inquiries via SMS."
+    },
+    {
+      question: "How secure is the information shared through TextG.pt?",
+      answer: "We take security very seriously. All communications are encrypted and we implement robust security measures to protect your data. Our AI processing follows strict privacy protocols, and we don't store message content longer than necessary for service provision. For more details, please see our <a href='/privacy' class='underline text-textgpt-300 hover:text-textgpt-400'>Privacy Policy</a>."
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-textgpt-200 via-textgpt-100 to-textgpt-200">
@@ -281,6 +302,7 @@ export default function TextGptLanding() {
         </div>
       </div>
 
+      {/* About Section */}
       <div id="about" className="py-20 bg-gradient-to-br from-textgpt-100 to-textgpt-200">
         <div className="container mx-auto px-6 max-w-5xl">
           <div className="text-center mb-16">
@@ -345,6 +367,9 @@ export default function TextGptLanding() {
           </div>
         </div>
       </div>
+
+      {/* FAQ Section */}
+      <FAQSection faqs={homeFaqs} variant="light" />
 
       <div id="contact" className="py-20 bg-white">
         <div className="container mx-auto px-6 max-w-5xl">

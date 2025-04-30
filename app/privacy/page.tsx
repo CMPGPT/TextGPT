@@ -10,22 +10,24 @@ export default function PrivacyPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="py-6 px-6 md:px-10 flex justify-between items-center bg-textgpt-200">
-        <Link href="/" className="flex items-center">
-          <MessageSquare size={30} className="text-textgpt-300 mr-2" />
-          <span className="text-2xl font-bold text-white">TextG.pt</span>
-        </Link>
-        <div className="space-x-4">
-          <Link href="/terms">
-            <Button variant="ghost" className="text-white hover:text-textgpt-300">
-              Terms of Service
-            </Button>
+      <nav className="py-6 px-6 md:px-10 bg-textgpt-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <Link href="/" className="flex items-center">
+            <MessageSquare size={30} className="text-textgpt-300 mr-2" />
+            <span className="text-2xl font-bold text-white">TextG.pt</span>
           </Link>
-          <Link href="/">
-            <Button variant="outline" className="text-white border-white hover:bg-white/10">
-              Back to Home
-            </Button>
-          </Link>
+          <div className="flex items-center space-x-4">
+            <Link href="/terms">
+              <Button variant="ghost" className="text-white hover:text-textgpt-300">
+                Terms of Service
+              </Button>
+            </Link>
+            <Link href="/">
+              <Button variant="outline" className="text-white border-white hover:bg-white/10 sm:order-last">
+                Back to Home
+              </Button>
+            </Link>
+          </div>
         </div>
       </nav>
 
