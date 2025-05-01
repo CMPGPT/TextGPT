@@ -363,7 +363,7 @@ export default function TextGptLanding() {
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Why It's Attractive to the Government</h3>
+              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Why It&apos;s Attractive to the Government</h3>
               <div className="text-white/70 text-center md:text-left">
                 <ul className="space-y-2">
                   <li className="flex items-start">
@@ -380,7 +380,7 @@ export default function TextGptLanding() {
                   </li>
                   <li className="flex items-start">
                     <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
-                    <span>Easy to brand as public infrastructure ("Text RELIEF to 833-XXXX")</span>
+                    <span>Easy to brand as public infrastructure (&quot;Text RELIEF to 833-XXXX&quot;)</span>
                   </li>
                 </ul>
               </div>
