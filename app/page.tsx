@@ -125,7 +125,7 @@ export default function TextGptLanding() {
                 </Button>
               </a>
               <Link href="/auth/login">
-                <Button variant="outline" className="border-textgpt-300 text-white hover:bg-textgpt-300/10 px-8 py-6 w-full sm:w-auto">
+                <Button variant="outline" className="border-textgpt-300 text-white bg-transparent hover:bg-textgpt-300/10 px-8 py-6 w-full sm:w-auto">
                   Learn More
                 </Button>
               </Link>
@@ -310,7 +310,7 @@ export default function TextGptLanding() {
               About <span className="text-textgpt-300">TextG.pt</span>
             </h2>
             <p className="text-xl text-white/80 max-w-3xl mx-auto">
-              We&apos;re revolutionizing business-customer communication through intelligent SMS technology. Our AI platform offers seamless, app-free engagement solutions.
+              Delivering critical communication solutions for government agencies and emergency services through our intelligent SMS platform.
             </p>
           </div>
 
@@ -318,51 +318,72 @@ export default function TextGptLanding() {
             <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/10 transform transition-all duration-300 hover:scale-105 hover:bg-white/20 hover:shadow-xl">
               <div className="w-12 h-12 bg-textgpt-300 rounded-full flex items-center justify-center mb-4 mx-auto md:mx-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-textgpt-200">
-                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-                  <path d="M12 9v4"></path>
-                  <path d="M12 17h.01"></path>
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Our Mission</h3>
+              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">The Opportunity</h3>
               <p className="text-white/70 text-center md:text-left">
-                To make business-customer communication effortless through innovative text-based solutions that require no additional apps or downloads.
+                Government agencies (like FEMA, local health departments, emergency management) need fast, scalable, and accessible communication tools during natural disasters—especially for underserved, offline, or panicked populations.
               </p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/10 transform transition-all duration-300 hover:scale-105 hover:bg-white/20 hover:shadow-xl">
               <div className="w-12 h-12 bg-textgpt-300 rounded-full flex items-center justify-center mb-4 mx-auto md:mx-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-textgpt-200">
-                  <path d="M12 2v4"></path>
-                  <path d="m16 3.82-.8.8"></path>
-                  <path d="m8.8 4.62-.8-.8"></path>
-                  <path d="M3 10h4"></path>
-                  <path d="m3.82 14-.8.8"></path>
-                  <path d="M21 10h-4"></path>
-                  <path d="m20.18 14 .8.8"></path>
-                  <path d="M14 21v-4"></path>
-                  <path d="m14.18 16.18.8.8"></path>
-                  <path d="M10 21v-4"></path>
-                  <path d="m9.8 16.98-.8.8"></path>
-                  <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path>
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Our Technology</h3>
-              <p className="text-white/70 text-center md:text-left">
-                Built on advanced AI and natural language processing, our platform delivers personalized, context-aware interactions that feel natural.
-              </p>
+              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Your Solution</h3>
+              <div className="text-white/70 text-center md:text-left">
+                <p className="mb-3">Our text-based AI assistant that:</p>
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Works via toll-free SMS (no app or internet required)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Provides 24/7 answers and support during emergencies</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Can handle thousands of citizens at once, for pennies per interaction</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Delivers updates, resource directions, triage advice, shelter info, and emotional support</span>
+                  </li>
+                </ul>
+              </div>
             </div>
 
             <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/10 transform transition-all duration-300 hover:scale-105 hover:bg-white/20 hover:shadow-xl">
               <div className="w-12 h-12 bg-textgpt-300 rounded-full flex items-center justify-center mb-4 mx-auto md:mx-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-textgpt-200">
-                  <path d="M22 9a7.93 7.93 0 0 0-2.33-5.67A7.93 7.93 0 0 0 14 1h-4a7.93 7.93 0 0 0-5.67 2.33A7.93 7.93 0 0 0 2 9a9 9 0 0 0 12.24 8.5A21.93 21.93 0 0 1 20.5 21 2.42 2.42 0 0 0 22 20.3V9Z"></path>
-                  <path d="M15.29 17.24a8.983 8.983 0 0 0 2.01-9.17"></path>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Our Promise</h3>
-              <p className="text-white/70 text-center md:text-left">
-                We&apos;re committed to creating frictionless communication solutions that work for businesses of all sizes and their customers.
-              </p>
+              <h3 className="text-xl font-bold mb-2 text-white text-center md:text-left">Why It's Attractive to the Government</h3>
+              <div className="text-white/70 text-center md:text-left">
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Low cost & instantly deployable</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>SMS = universally accessible (even in low-bandwidth, crisis settings)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Reduces burden on human hotlines</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-1.5 h-1.5 bg-textgpt-300 rounded-full mr-2 mt-2"></div>
+                    <span>Easy to brand as public infrastructure ("Text RELIEF to 833-XXXX")</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

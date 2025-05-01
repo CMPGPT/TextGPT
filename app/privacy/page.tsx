@@ -242,12 +242,12 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-bold mb-4 text-textgpt-300">12. Contact Us</h2>
           <p className="mb-6">
-            If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at:<br />
-            Privacy Team<br />
-            TextGPT & IQRCodes
+            If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at: support@textg.pt<br />
+        
             </p>
+            
           </div>
-
+    
         <div className="mt-8 text-center">
           <Link href="/">
             <Button className="bg-textgpt-300 hover:bg-textgpt-400 text-black">
