@@ -403,16 +403,7 @@ export default function TextGptLanding() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 p-6 rounded-xl text-center">
-              <div className="w-12 h-12 bg-textgpt-100 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <MessageSquare size={24} className="text-white" />
-              </div>
-              <h3 className="font-bold mb-2">Chat With Us</h3>
-              <p className="text-gray-600 mb-4">Have questions? Our team is here to help.</p>
-              <Button className="bg-textgpt-100 hover:bg-textgpt-200 text-white w-full sm:w-auto">Start Chat</Button>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-gray-50 p-6 rounded-xl text-center">
               <div className="w-12 h-12 bg-textgpt-300 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
@@ -422,7 +413,9 @@ export default function TextGptLanding() {
               </div>
               <h3 className="font-bold mb-2">Email Support</h3>
               <p className="text-gray-600 mb-4">Send us an email and we&apos;ll respond within 24 hours.</p>
-              <Button className="bg-textgpt-300 hover:bg-textgpt-400 text-white w-full sm:w-auto">Email Us</Button>
+              <a href="mailto:help@textg.pt">
+                <Button className="bg-textgpt-300 hover:bg-textgpt-400 text-white w-full sm:w-auto">Email Us</Button>
+              </a>
             </div>
 
             <div className="bg-gray-50 p-6 rounded-xl text-center">
@@ -431,7 +424,9 @@ export default function TextGptLanding() {
               </div>
               <h3 className="font-bold mb-2">Call Us</h3>
               <p className="text-gray-600 mb-4">Speak directly with our support team.</p>
-              <Button className="bg-textgpt-400 hover:bg-textgpt-300 text-white w-full sm:w-auto">Call Now</Button>
+              <a href="tel:+13168821681">
+                <Button className="bg-textgpt-400 hover:bg-textgpt-300 text-white w-full sm:w-auto">Call Now</Button>
+              </a>
             </div>
           </div>
         </div>

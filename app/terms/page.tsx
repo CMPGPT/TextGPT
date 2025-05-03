@@ -189,7 +189,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-bold mb-4 text-textgpt-300">17. Contact Information</h2>
           <p className="mb-6">
-            If you have any questions about these Terms, please contact us at: support@textg.pt
+            If you have any questions about these Terms, please contact us at: help@textg.pt
             </p>
           </div>
 
