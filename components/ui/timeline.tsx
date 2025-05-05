@@ -73,11 +73,28 @@ function TimelineItem({
   status = "completed",
   color = "primary",
   id,
-  isLast = false
-}: TimelineItemProps & { isLast?: boolean }) {
+  isLast = false,
+  animate = false,
+  index = 0
+}: TimelineItemProps & { 
+  isLast?: boolean,
+  animate?: boolean,
+  index?: number
+}) {
   return (
-    <div key={id} className={cn(timelineItemVariants({ status, color, isLast }))}>
-      <div className={cn(iconVariants({ status, color }))}>
+    <div 
+      key={id} 
+      className={cn(
+        timelineItemVariants({ status, color, isLast }),
+        animate && "transition-all duration-300",
+        animate && `animate-in fade-in delay-${index * 100}`
+      )}
+    >
+      <div className={cn(
+        iconVariants({ status, color }),
+        animate && "transition-transform duration-500",
+        animate && `animate-in zoom-in delay-${index * 100}`
+      )}>
         {icon || (status === "completed" ? "✓" : id)}
       </div>
       <h3 className="font-medium text-lg text-white">{title}</h3>
@@ -104,6 +121,8 @@ export function TimelineLayout({
           key={item.id}
           {...item}
           isLast={index === items.length - 1}
+          animate={animate}
+          index={index}
         />
       ))}
     </div>
