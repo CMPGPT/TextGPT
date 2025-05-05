@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageSquare, CheckCircle, ShieldCheck, Menu, X } from "lucide-react";
+import { MessageSquare, CheckCircle, ShieldCheck, Menu, X, Send, MessageCircle, RefreshCw, XCircle, Trash } from "lucide-react";
+import { TimelineLayout } from "@/components/ui/timeline";
 
 export default function OptInPage() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -102,67 +103,52 @@ export default function OptInPage() {
               <CardContent className="p-6">
                 <h2 className="text-2xl font-bold text-white mb-6">How Our SMS Service Works:</h2>
                 
-                <div className="space-y-6">
-                  <div className="flex gap-4 items-start">
-                    <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-white font-bold">1</span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-medium text-white">You Initiate Contact</h3>
-                      <p className="text-white/80 mt-1">
-                        You text &quot;hello&quot; to our number or scan our QR code to send your first message.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-4 items-start">
-                    <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-white font-bold">2</span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-medium text-white">We Respond</h3>
-                      <p className="text-white/80 mt-1">
-                        Our AI assistant replies to your message with helpful information and assistance.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-4 items-start">
-                    <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-white font-bold">3</span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-medium text-white">Conversation Continues</h3>
-                      <p className="text-white/80 mt-1">
-                        You can continue the conversation as needed, with our AI providing relevant responses.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-4 items-start">
-                    <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-white font-bold">4</span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-medium text-white">Opt-Out Anytime</h3>
-                      <p className="text-white/80 mt-1">
-                        You can stop the conversation at any time by texting &quot;STOP&quot;.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 items-start">
-                    <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-white font-bold">5</span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-medium text-white">Delete Conversation</h3>
-                      <p className="text-white/80 mt-1">
-                        You can delete your entire conversation history by texting &quot;DELETE&quot;.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <TimelineLayout
+                  animate
+                  className="min-h-[400px] w-full"
+                  items={[
+                    {
+                      color: 'accent',
+                      description: 'You text "hello" to our number or scan our QR code to send your first message.',
+                      icon: <MessageCircle className="w-4 h-4 text-textgpt-200" />,
+                      id: 1,
+                      status: 'completed',
+                      title: 'You Initiate Contact'
+                    },
+                    {
+                      color: 'accent',
+                      description: 'Our AI assistant replies to your message with helpful information and assistance.',
+                      icon: <Send className="w-4 h-4 text-textgpt-200" />,
+                      id: 2,
+                      status: 'completed',
+                      title: 'We Respond'
+                    },
+                    {
+                      color: 'accent',
+                      description: 'You can continue the conversation as needed, with our AI providing relevant responses.',
+                      icon: <RefreshCw className="w-4 h-4 text-textgpt-200" />,
+                      id: 3,
+                      status: 'completed',
+                      title: 'Conversation Continues'
+                    },
+                    {
+                      color: 'accent',
+                      description: 'You can stop the conversation at any time by texting "STOP".',
+                      icon: <XCircle className="w-4 h-4 text-textgpt-200" />,
+                      id: 4,
+                      status: 'completed',
+                      title: 'Opt-Out Anytime'
+                    },
+                    {
+                      color: 'accent',
+                      description: 'You can delete your entire conversation history by texting "DELETE".',
+                      icon: <Trash className="w-4 h-4 text-textgpt-200" />,
+                      id: 5,
+                      status: 'completed',
+                      title: 'Delete Conversation'
+                    }
+                  ]}
+                />
               </CardContent>
             </Card>
           </div>
