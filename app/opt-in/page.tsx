@@ -86,7 +86,7 @@ export default function OptInPage() {
       {/* This div serves as a spacer when the navbar becomes fixed */}
       {isScrolled && <div className="h-24 md:h-28" aria-hidden="true"></div>}
 
-      <div className="container mx-auto px-6 pb-20 md:pb-28 max-w-6xl pt-8 md:pt-16">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-20 md:pb-28 max-w-7xl pt-8 md:pt-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
             Explicit <span className="text-textgpt-300">Opt-In</span> Process
@@ -96,7 +96,7 @@ export default function OptInPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center max-w-6xl mx-auto">
           <div>
             <Card className="bg-white/10 backdrop-blur-lg border border-white/20 overflow-hidden">
               <CardContent className="p-6">
@@ -219,7 +219,7 @@ export default function OptInPage() {
           </div>
         </div>
         
-        <div className="mt-16 max-w-3xl mx-auto bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
+        <div className="mt-16 max-w-2xl mx-auto bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-4">Visual Demonstration of Opt-In</h2>
             <p className="text-white/80 mb-8">Here&apos;s how the opt-in process works when you text us:</p>
@@ -232,20 +232,32 @@ export default function OptInPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
-                <p className="text-white text-sm">Hello</p>
+              {/* User message - Hello */}
+              <div className="flex justify-end w-full">
+                <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none inline-block">
+                  <p className="text-white text-sm text-right">Hello, I want you to set a reminder for me to take out the trash</p>
+                </div>
               </div>
 
-              <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
-                <p className="text-white text-sm">Hi there! 👋 I&apos;m TextGPT, your AI assistant. How can I help you today?</p>
+              {/* Assistant response */}
+              <div className="flex justify-start w-full">
+                <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none max-w-4/5">
+                  <p className="text-white text-sm">Aight! I&apos;ll help you by making a reminder for you to take out the trash. What time would you like me to remind you? 😀</p>
+                </div>
               </div>
 
-              <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
-                <p className="text-white text-sm">I need help with my shopping list</p>
+              {/* User message - Shopping list */}
+              <div className="flex justify-end w-full">
+                <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none inline-block">
+                  <p className="text-white text-sm text-right">  remind me at 10:00 AM today</p>
+                </div>
               </div>
 
-              <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
-                <p className="text-white text-sm">I&apos;ll help you with your shopping list! What items would you like to include?</p>
+              {/* Assistant response */}
+              <div className="flex justify-start w-full">
+                <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none max-w-4/5">
+                  <p className="text-white text-sm">The reminder has been set! I&apos;ll remind you at 10:00 AM today 🔔. If you need anything else, just let me know! </p>
+                </div>
               </div>
             </div>
           </div>
@@ -263,7 +275,7 @@ export default function OptInPage() {
       </div>
       
       <footer className="bg-textgpt-200/80 backdrop-blur-md py-8 border-t border-white/10">
-        <div className="container mx-auto px-6 max-w-7xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-6 md:mb-0">
               <MessageSquare size={24} className="text-textgpt-300 mr-2" />

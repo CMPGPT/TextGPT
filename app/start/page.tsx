@@ -92,9 +92,9 @@ export default function StartPage() {
       {/* This div serves as a spacer when the navbar becomes fixed */}
       {isScrolled && <div className="h-24 md:h-28" aria-hidden="true"></div>}
 
-      <div className="container mx-auto px-6 pb-20 md:pb-28 max-w-6xl pt-8 md:pt-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="max-w-2xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-20 md:pb-28 max-w-7xl pt-8 md:pt-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="max-w-2xl lg:max-w-none">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
               Start Chatting with
               <span className="text-textgpt-300 block mt-2">TextGPT</span>
@@ -135,7 +135,7 @@ export default function StartPage() {
             </div>
           </div>
           
-          <div className="relative mx-auto">
+          <div className="relative mx-auto lg:mx-0 lg:ml-auto">
             <div className="absolute top-0 -left-20 w-72 h-72 bg-textgpt-300/30 rounded-full filter blur-3xl opacity-70 animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-48 h-48 bg-textgpt-400/30 rounded-full filter blur-xl opacity-70 animate-pulse delay-700"></div>
 
@@ -175,7 +175,7 @@ export default function StartPage() {
           </div>
         </div>
         
-        <div className="mt-16 max-w-3xl mx-auto">
+        <div className="mt-16 max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-white text-center mb-8">
             Why <span className="text-textgpt-300">SMS</span>?
           </h2>
@@ -233,7 +233,7 @@ export default function StartPage() {
       </div>
       
       <footer className="bg-textgpt-200/80 backdrop-blur-md py-8 border-t border-white/10">
-        <div className="container mx-auto px-6 max-w-7xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-6 md:mb-0">
               <MessageSquare size={24} className="text-textgpt-300 mr-2" />
