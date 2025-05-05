@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageSquare, ArrowRight, Smartphone, Menu, X } from "lucide-react";
+import { MessageSquare, Smartphone, Menu, X } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -37,14 +37,6 @@ export default function StartPage() {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
-  };
-
-  const getDate = () => {
-    return new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   return (
@@ -108,7 +100,7 @@ export default function StartPage() {
               <span className="text-textgpt-300 block mt-2">TextGPT</span>
             </h1>
             <p className="text-xl mb-8 text-white/80">
-              No apps, no downloads—just pure convenience. Text us first, and we'll respond instantly to help you stay organized, get answers, and complete tasks effortlessly.
+              No apps, no downloads—just pure convenience. Text us first, and we&apos;ll respond instantly to help you stay organized, get answers, and complete tasks effortlessly.
             </p>
             
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20 mb-8">
@@ -118,7 +110,7 @@ export default function StartPage() {
                   <Smartphone className="h-6 w-6 text-textgpt-100" />
                 </div>
                 <div>
-                  <p className="text-xl font-medium text-white mb-1">Text "hello" to</p>
+                  <p className="text-xl font-medium text-white mb-1">Text &quot;hello&quot; to</p>
                   <p className="text-2xl font-bold text-textgpt-300">833-541-1836</p>
                   <p className="text-white/70 text-sm mt-1">to get started.</p>
                 </div>
@@ -160,14 +152,21 @@ export default function StartPage() {
                   />
                 </div>
                 <div className="bg-textgpt-200/60 p-4 rounded-lg">
-                  <div className="flex gap-3 mb-3">
-                    <div className="bg-textgpt-300/20 p-3 rounded-lg text-white text-sm w-3/4 ml-auto">
-                      <strong>You:</strong> Hello
+                  <div className="space-y-4">
+                    <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
+                      <p className="text-white text-sm">Hello</p>
                     </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="bg-textgpt-200/80 p-3 rounded-lg text-white text-sm w-3/4">
-                      <strong>TextGPT:</strong> Hi there! 👋 I'm TextGPT, your AI assistant. How can I help you today?
+                    
+                    <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
+                      <p className="text-white text-sm">Hi there! 👋 I&apos;m TextGPT, your AI assistant. How can I help you today?</p>
+                    </div>
+                    
+                    <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
+                      <p className="text-white text-sm">I need help planning my day tomorrow</p>
+                    </div>
+                    
+                    <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
+                      <p className="text-white text-sm">I&apos;d be happy to help you plan your day! Would you like to start with organizing your tasks, scheduling appointments, or creating a morning routine?</p>
                     </div>
                   </div>
                 </div>
@@ -190,7 +189,7 @@ export default function StartPage() {
                 No App Installation Required
               </AccordionTrigger>
               <AccordionContent className="px-6 text-white/80">
-                Use your phone's native messaging app - no additional downloads, sign-ups, or account creation needed.
+                Use your phone&apos;s native messaging app - no additional downloads, sign-ups, or account creation needed.
               </AccordionContent>
             </AccordionItem>
             
@@ -214,7 +213,7 @@ export default function StartPage() {
                 Privacy & Security
               </AccordionTrigger>
               <AccordionContent className="px-6 text-white/80">
-                We take your privacy seriously. All conversations are secured with industry-standard encryption, and we don't store your data longer than necessary.
+                We take your privacy seriously. All conversations are secured with industry-standard encryption, and we don&apos;t store your data longer than necessary.
               </AccordionContent>
             </AccordionItem>
             
@@ -241,16 +240,30 @@ export default function StartPage() {
               <span className="text-xl font-bold text-white">TextG.pt</span>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-4 md:gap-8">
-              <Link href="/terms" className="text-white/70 hover:text-white">Terms of Service</Link>
-              <Link href="/privacy" className="text-white/70 hover:text-white">Privacy Policy</Link>
-              <Link href="/opt-in" className="text-white/70 hover:text-white">Opt-In</Link>
+            <div className="flex flex-wrap justify-center md:justify-end gap-6">
+              <Link href="/terms" className="text-white/70 hover:text-white transition-colors">
+                Terms of Service
+              </Link>
+              <Link href="/privacy" className="text-white/70 hover:text-white transition-colors">
+                Privacy Policy
+              </Link>
+              <Link href="/opt-in" className="text-white/70 hover:text-white transition-colors">
+                Opt-In Process
+              </Link>
+              <a href="mailto:support@textgpt.com" className="text-white/70 hover:text-white transition-colors">
+                Contact Us
+              </a>
             </div>
           </div>
           
-          <div className="mt-6 text-center text-white/50 text-sm">
-            <p>© {new Date().getFullYear()} TextGPT. All rights reserved.</p>
-            <p className="mt-1">Last updated: {getDate()}</p>
+          <div className="mt-8 pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-white/60 text-sm mb-4 md:mb-0">
+              © {new Date().getFullYear()} TextGPT. All rights reserved.
+            </p>
+            
+            <p className="text-white/60 text-sm text-center md:text-right">
+              A product by <span className="text-textgpt-300">AI Innovations</span> | Last updated: {new Date().toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'})}
+            </p>
           </div>
         </div>
       </footer>

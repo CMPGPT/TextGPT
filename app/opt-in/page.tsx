@@ -33,14 +33,6 @@ export default function OptInPage() {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const getDate = () => {
-    return new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-textgpt-200 via-textgpt-100 to-textgpt-200">
       <nav className={`py-6 px-6 md:px-10 flex justify-between items-center z-50 ${
@@ -113,19 +105,19 @@ export default function OptInPage() {
                 <div className="space-y-6">
                   <div className="flex gap-4 items-start">
                     <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-textgpt-100 font-bold">1</span>
+                      <span className="text-white font-bold">1</span>
                     </div>
                     <div>
                       <h3 className="text-xl font-medium text-white">You Initiate Contact</h3>
                       <p className="text-white/80 mt-1">
-                        You text "hello" to our number or scan our QR code to send your first message.
+                        You text &quot;hello&quot; to our number or scan our QR code to send your first message.
                       </p>
                     </div>
                   </div>
                   
                   <div className="flex gap-4 items-start">
                     <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-textgpt-100 font-bold">2</span>
+                      <span className="text-white font-bold">2</span>
                     </div>
                     <div>
                       <h3 className="text-xl font-medium text-white">We Respond</h3>
@@ -137,7 +129,7 @@ export default function OptInPage() {
                   
                   <div className="flex gap-4 items-start">
                     <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-textgpt-100 font-bold">3</span>
+                      <span className="text-white font-bold">3</span>
                     </div>
                     <div>
                       <h3 className="text-xl font-medium text-white">Conversation Continues</h3>
@@ -149,12 +141,24 @@ export default function OptInPage() {
                   
                   <div className="flex gap-4 items-start">
                     <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
-                      <span className="text-textgpt-100 font-bold">4</span>
+                      <span className="text-white font-bold">4</span>
                     </div>
                     <div>
                       <h3 className="text-xl font-medium text-white">Opt-Out Anytime</h3>
                       <p className="text-white/80 mt-1">
-                        You can stop the conversation at any time by texting "STOP".
+                        You can stop the conversation at any time by texting &quot;STOP&quot;.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-start">
+                    <div className="bg-textgpt-300 rounded-full p-2 flex-shrink-0">
+                      <span className="text-white font-bold">5</span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-medium text-white">Delete Conversation</h3>
+                      <p className="text-white/80 mt-1">
+                        You can delete your entire conversation history by texting &quot;DELETE&quot;.
                       </p>
                     </div>
                   </div>
@@ -203,7 +207,7 @@ export default function OptInPage() {
               </div>
               
               <div className="text-center">
-                <p className="text-white font-medium mb-4">Text "hello" to get started</p>
+                <p className="text-white font-medium mb-4">Text &quot;hello&quot; to get started</p>
                 <p className="text-2xl font-bold text-textgpt-300 mb-6">833-541-1836</p>
                 <a href="sms:+18335411836?body=hello">
                   <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 w-full py-6">
@@ -218,40 +222,43 @@ export default function OptInPage() {
         <div className="mt-16 max-w-3xl mx-auto bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-4">Visual Demonstration of Opt-In</h2>
-            <p className="text-white/80 mb-8">Here's how the opt-in process works when you text us:</p>
+            <p className="text-white/80 mb-8">Here&apos;s how the opt-in process works when you text us:</p>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-textgpt-200/60 p-4 rounded-lg">
-              <div className="mb-2 text-center">
-                <span className="inline-block bg-textgpt-300 text-textgpt-100 rounded-full px-3 py-1 text-sm font-bold">Step 1</span>
-              </div>
-              <div className="bg-textgpt-300/20 p-3 rounded-lg text-white text-sm">
-                <strong>You:</strong> Hello
-              </div>
+          <div className="relative bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
+            <div className="flex items-center mb-6">
+              <MessageSquare size={24} className="text-textgpt-300 mr-3" />
+              <span className="text-xl font-semibold text-white">TextG.pt Assistant</span>
             </div>
-            
-            <div className="bg-textgpt-200/60 p-4 rounded-lg">
-              <div className="mb-2 text-center">
-                <span className="inline-block bg-textgpt-300 text-textgpt-100 rounded-full px-3 py-1 text-sm font-bold">Step 2</span>
+
+            <div className="space-y-4">
+              <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
+                <p className="text-white text-sm">Hello</p>
               </div>
-              <div className="bg-textgpt-200/80 p-3 rounded-lg text-white text-sm">
-                <strong>TextGPT:</strong> Hi there! 👋 I'm TextGPT, your AI assistant. How can I help you today?
+
+              <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
+                <p className="text-white text-sm">Hi there! 👋 I&apos;m TextGPT, your AI assistant. How can I help you today?</p>
               </div>
-            </div>
-            
-            <div className="bg-textgpt-200/60 p-4 rounded-lg">
-              <div className="mb-2 text-center">
-                <span className="inline-block bg-textgpt-300 text-textgpt-100 rounded-full px-3 py-1 text-sm font-bold">Step 3</span>
+
+              <div className="bg-textgpt-300/20 p-3 rounded-lg rounded-tr-none ml-auto w-4/5">
+                <p className="text-white text-sm">I need help with my shopping list</p>
               </div>
-              <div className="bg-textgpt-300/20 p-3 rounded-lg text-white text-sm">
-                <strong>You:</strong> Can you help me find a recipe?
-              </div>
-              <div className="mt-2 bg-textgpt-200/80 p-3 rounded-lg text-white text-sm">
-                <strong>TextGPT:</strong> Absolutely! What type of recipe are you looking for?
+
+              <div className="bg-textgpt-200/40 p-3 rounded-lg rounded-tl-none w-4/5">
+                <p className="text-white text-sm">I&apos;ll help you with your shopping list! What items would you like to include?</p>
               </div>
             </div>
           </div>
+          
+
+        </div>
+        
+        <div className="text-center mt-12 max-w-2xl mx-auto">
+          <Link href="/start">
+            <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 px-8 py-6">
+              Back to Start Page
+            </Button>
+          </Link>
         </div>
       </div>
       
@@ -263,16 +270,30 @@ export default function OptInPage() {
               <span className="text-xl font-bold text-white">TextG.pt</span>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-4 md:gap-8">
-              <Link href="/terms" className="text-white/70 hover:text-white">Terms of Service</Link>
-              <Link href="/privacy" className="text-white/70 hover:text-white">Privacy Policy</Link>
-              <Link href="/start" className="text-white/70 hover:text-white">Start Chatting</Link>
+            <div className="flex flex-wrap justify-center md:justify-end gap-6">
+              <Link href="/terms" className="text-white/70 hover:text-white transition-colors">
+                Terms of Service
+              </Link>
+              <Link href="/privacy" className="text-white/70 hover:text-white transition-colors">
+                Privacy Policy
+              </Link>
+              <Link href="/start" className="text-white/70 hover:text-white transition-colors">
+                Start Page
+              </Link>
+              <a href="mailto:support@textgpt.com" className="text-white/70 hover:text-white transition-colors">
+                Contact Us
+              </a>
             </div>
           </div>
           
-          <div className="mt-6 text-center text-white/50 text-sm">
-            <p>© {new Date().getFullYear()} TextGPT. All rights reserved.</p>
-            <p className="mt-1">Last updated: {getDate()}</p>
+          <div className="mt-8 pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-white/60 text-sm mb-4 md:mb-0">
+              © {new Date().getFullYear()} TextGPT. All rights reserved.
+            </p>
+            
+            <p className="text-white/60 text-sm text-center md:text-right">
+              A product by <span className="text-textgpt-300">AI Innovations</span> | Last updated: {new Date().toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'})}
+            </p>
           </div>
         </div>
       </footer>

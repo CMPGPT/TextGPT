@@ -445,7 +445,6 @@ export default function TextGptLanding() {
                 <ul className="space-y-2">
                   <li><Link href="/iqr/landing" className="hover:text-textgpt-300">IQR.codes</Link></li>
                   <li><Link href="/kiwi/landing" className="hover:text-textgpt-300">Kiwi</Link></li>
-                  <li><a href="#" className="hover:text-textgpt-300">Pricing</a></li>
                 </ul>
               </div>
               <div>
@@ -461,7 +460,14 @@ export default function TextGptLanding() {
                 <ul className="space-y-2">
                   <li><Link href="/privacy" className="hover:text-textgpt-300">Privacy</Link></li>
                   <li><Link href="/terms" className="hover:text-textgpt-300">Terms</Link></li>
-                  <li><a href="#" className="hover:text-textgpt-300">Security</a></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-bold mb-4 text-white">SMS</h4>
+                <ul className="space-y-2">
+                  <li><Link href="/start" className="hover:text-textgpt-300">Start SMS</Link></li>
+                  <li><Link href="/opt-in" className="hover:text-textgpt-300">Opt-In Process</Link></li>
                 </ul>
               </div>
             </div>

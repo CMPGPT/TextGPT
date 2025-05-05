@@ -254,6 +254,8 @@ export default function KiwiLanding() {
               <Link href="/terms" className="hover:text-kiwi-200">Terms</Link>
               <Link href="/privacy" className="hover:text-kiwi-200">Privacy</Link>
               <Link href="#features" className="hover:text-kiwi-200">Features</Link>
+              <Link href="/start" className="hover:text-kiwi-200">Start SMS</Link>
+              <Link href="/opt-in" className="hover:text-kiwi-200">Opt-In Process</Link>
             </div>
           </div>
           <div className="border-t border-white/10 mt-10 pt-8 text-center text-sm">

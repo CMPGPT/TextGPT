@@ -188,6 +188,8 @@ export default function IQRLanding() {
               <Link href="/" className="hover:text-iqr-200 transition-colors">Home</Link>
               <Link href="/privacy" className="hover:text-iqr-200 transition-colors">Privacy</Link>
               <Link href="/terms" className="hover:text-iqr-200 transition-colors">Terms</Link>
+              <Link href="/start" className="hover:text-iqr-200 transition-colors">Start SMS</Link>
+              <Link href="/opt-in" className="hover:text-iqr-200 transition-colors">Opt-In Process</Link>
             </div>
           </div>
           <div className="border-t border-iqr-100/30 mt-8 pt-8 text-center text-sm">
