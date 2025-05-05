@@ -289,9 +289,7 @@ export default function OptInPage() {
               © {new Date().getFullYear()} TextGPT. All rights reserved.
             </p>
             
-            <p className="text-white/60 text-sm text-center md:text-right">
-              A product by <span className="text-textgpt-300">AI Innovations</span> | Last updated: {new Date().toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'})}
-            </p>
+
           </div>
         </div>
       </footer>
