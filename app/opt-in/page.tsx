@@ -208,7 +208,7 @@ export default function OptInPage() {
                       className="mt-1"
                     />
                     <label htmlFor="consent-checkbox" className="text-white/80 text-sm">
-                      By checking this box and clicking "SEND" you consent to receive transactional text messages for notifications and alerts from TextG.pt. Reply STOP to opt out. Reply HELP for help. Message and data rates may apply. Message frequency may vary.
+                      By checking this box and clicking &quot;SEND&quot; you consent to receive transactional text messages for notifications and alerts from TextG.pt. Reply STOP to opt out. Reply HELP for help. Message and data rates may apply. Message frequency may vary.
                     </label>
                   </div>
                   
