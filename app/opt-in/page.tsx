@@ -11,6 +11,8 @@ import { TimelineLayout } from "@/components/ui/timeline";
 export default function OptInPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -195,8 +197,52 @@ export default function OptInPage() {
               <div className="text-center">
                 <p className="text-white font-medium mb-4">Text &quot;hello&quot; to get started</p>
                 <p className="text-2xl font-bold text-textgpt-300 mb-6">833-541-1836</p>
-                <a href="sms:+18335411836?body=hello">
-                  <Button className="bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400 w-full py-6">
+                
+                <div className="space-y-3 mb-4 text-left">
+                  <div className="flex items-start gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="consent-checkbox"
+                      checked={consentChecked}
+                      onChange={(e) => setConsentChecked(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <label htmlFor="consent-checkbox" className="text-white/80 text-sm">
+                      By checking this box and clicking "SEND" you consent to receive transactional text messages for notifications and alerts from TextG.pt. Reply STOP to opt out. Reply HELP for help. Message and data rates may apply. Message frequency may vary.
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-start gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="terms-checkbox"
+                      checked={termsChecked}
+                      onChange={(e) => setTermsChecked(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <label htmlFor="terms-checkbox" className="text-white/80 text-sm">
+                      I agree to the <Link href="/terms" className="text-textgpt-300 hover:underline">Terms and Conditions</Link> and <Link href="/privacy" className="text-textgpt-300 hover:underline">Privacy Policy</Link>.
+                    </label>
+                  </div>
+                </div>
+                
+                <a 
+                  href={consentChecked && termsChecked ? "sms:+18335411836?body=hello" : "#"}
+                  onClick={(e) => {
+                    if (!consentChecked || !termsChecked) {
+                      e.preventDefault();
+                      alert("Please accept the terms and consent to continue.");
+                    }
+                  }}
+                >
+                  <Button 
+                    className={`w-full py-6 ${
+                      consentChecked && termsChecked 
+                        ? "bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400" 
+                        : "bg-gray-500 text-gray-300 cursor-not-allowed"
+                    }`}
+                    disabled={!consentChecked || !termsChecked}
+                  >
                     Start Texting Now
                   </Button>
                 </a>
