@@ -165,7 +165,7 @@ export default function IQRLanding() {
           <p className="text-xl text-iqr-300 mb-10 mx-auto max-w-2xl">
             Join hundreds of businesses already using IQR.codes to connect with customers in a seamless, app-free experience.
           </p>
-          <Link href="/coming-soon">
+          <Link href="/iqr/dashboard">
             <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-8 py-6 text-lg">
               Start Creating Your IQR Codes
             </Button>
