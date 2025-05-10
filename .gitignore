@@ -32,7 +32,7 @@ yarn-error.log*
 
 .cursorrules
 .cursor/rules
-
+serviceAccountKey.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
