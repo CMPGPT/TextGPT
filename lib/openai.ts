@@ -1,9 +1,18 @@
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// Create OpenAI client instance
+// Verify OpenAI API key is set
+const verifyOpenAIConfig = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OpenAI API key is missing. Please check your environment variables.');
+    throw new Error('OpenAI API key is required. Please check your environment variables.');
+  }
+  return process.env.OPENAI_API_KEY;
+};
+
+// Create OpenAI client instance with error handling
 export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY || 'missing-api-key',
 });
 
 // Define the function schemas for OpenAI function calling

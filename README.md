@@ -14,6 +14,23 @@ TextGPT is a platform that offers two main services:
 - Chat interfaces for user interactions
 - SMS integration capabilities
 
+## Environment Setup (Important for Deployment)
+
+This application requires several environment variables to function correctly. For Vercel deployment, you must add these variables in the Vercel project settings.
+
+### Critical Environment Variables
+
+```
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+
+# Supabase Configuration (Project ID: zxagqatfzsfpqhaapusj)
+NEXT_PUBLIC_SUPABASE_URL=https://zxagqatfzsfpqhaapusj.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -43,34 +60,45 @@ npm run dev
 yarn dev
 ```
 
-### Deployment
+### Vercel Deployment
 
 This project is configured for deployment on Vercel.
 
-```bash
-# Install Vercel CLI
-npm install -g vercel
+1. Connect your GitHub repository to Vercel
+2. Configure the environment variables in Vercel project settings:
+   - Go to your Vercel project dashboard
+   - Navigate to "Settings" > "Environment Variables"
+   - Add all the required environment variables listed above
+3. Deploy the application
 
-# Deploy to Vercel
+```bash
+# Or use Vercel CLI
+npm install -g vercel
 vercel
 ```
 
 ## Technology Stack
 
 - Next.js for frontend and API routes
-- Firebase for authentication and database
-- Pinecone for vector database
-- Stripe for subscription management
+- Supabase for database and authentication
 - OpenAI for chat functionality
-- Telnyx for SMS services (future implementation)
+- Stripe for subscription management
+- Firebase for additional features
 
 ## Project Structure
 
-- `/pages`: Next.js pages and API routes
+- `/app`: Next.js App Router pages and API routes
 - `/components`: Reusable React components
-- `/utils`: Utility functions and API clients
+- `/lib`: Core libraries and API clients
+- `/utils`: Utility functions
 - `/styles`: Global styles and CSS modules
 - `/public`: Static assets
+
+## Security Notes
+
+- Never commit sensitive API keys or environment variables to your repository
+- Always use environment variables for sensitive information
+- The Supabase service role key has admin privileges - keep it secure
 
 ## License
 

@@ -4,8 +4,27 @@ import { supabaseAdmin } from '@/lib/supabase';
 // Mark this route as dynamic since it uses request.url
 export const dynamic = 'force-dynamic';
 
+// Define type for chat message
+type ChatMessage = {
+  id: number;
+  user_id: string | null;
+  role: string | null;
+  content: string | null;
+  created_at: string;
+};
+
+// Helper function to verify Supabase configuration
+const verifySupabaseConfig = () => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase configuration missing. Please check environment variables.');
+  }
+};
+
 export async function GET(req: NextRequest) {
   try {
+    // Verify Supabase configuration before proceeding
+    verifySupabaseConfig();
+    
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const limit = parseInt(url.searchParams.get('limit') || '50', 10);
@@ -52,7 +71,7 @@ export async function GET(req: NextRequest) {
     
     console.log(`[HISTORY] Retrieved ${messages?.length || 0} messages for user: ${userId}`);
     if (messages?.length > 0) {
-      console.log(`[HISTORY] Message roles:`, messages.map(m => m.role));
+      console.log(`[HISTORY] Message roles:`, messages.map((m: ChatMessage) => m.role));
     }
     
     return new Response(JSON.stringify(messages), {
@@ -73,6 +92,9 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    // Verify Supabase configuration before proceeding
+    verifySupabaseConfig();
+    
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     

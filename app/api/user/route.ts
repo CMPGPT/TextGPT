@@ -4,8 +4,18 @@ import { supabaseAdmin } from '@/lib/supabase';
 // Mark this route as dynamic since it uses request.url
 export const dynamic = 'force-dynamic';
 
+// Helper function to verify Supabase configuration
+const verifySupabaseConfig = () => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase configuration missing. Please check environment variables.');
+  }
+};
+
 export async function GET(req: NextRequest) {
   try {
+    // Verify Supabase configuration before proceeding
+    verifySupabaseConfig();
+    
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     
@@ -38,6 +48,9 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    // Verify Supabase configuration before proceeding
+    verifySupabaseConfig();
+    
     const { userId, data } = await req.json();
     
     if (!userId) {
@@ -84,6 +97,9 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    // Verify Supabase configuration before proceeding
+    verifySupabaseConfig();
+    
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     

@@ -10,8 +10,22 @@ const DEFAULT_SYSTEM_PROMPT = `You are a helpful, friendly AI assistant. Your go
 
 Respond conversationally and be friendly while maintaining accuracy. If you don't know something, admit it rather than making up information.`;
 
+// Helper function to verify Supabase and OpenAI configuration
+const verifyConfigurations = () => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase configuration missing. Please check environment variables.');
+  }
+  
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key missing. Please check environment variables.');
+  }
+};
+
 export async function POST(req: NextRequest) {
   try {
+    // Verify required configurations before proceeding
+    verifyConfigurations();
+    
     const { messages, user_id } = await req.json();
     
     console.log(`[CHAT] Processing request for user: ${user_id}`);

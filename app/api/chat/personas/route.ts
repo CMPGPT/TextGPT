@@ -4,8 +4,18 @@ import { supabaseAdmin } from '@/lib/supabase';
 // Mark this route as dynamic since it uses request.url
 export const dynamic = 'force-dynamic';
 
+// Helper function to verify Supabase configuration
+const verifySupabaseConfig = () => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase configuration missing. Please check environment variables.');
+  }
+};
+
 export async function GET(req: NextRequest) {
   try {
+    // Verify Supabase configuration before proceeding
+    verifySupabaseConfig();
+    
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     

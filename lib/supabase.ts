@@ -1,14 +1,43 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Check for required environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Function to create a client with error handling
+const createSupabaseClient = (url?: string, key?: string) => {
+  if (!url || !key) {
+    console.error('Supabase URL or key is missing');
+    // Return a minimal client that will throw proper errors when used
+    return {
+      from: () => {
+        throw new Error('Supabase client is not properly initialized. Check your environment variables.');
+      },
+      auth: {
+        signInWithPassword: () => {
+          throw new Error('Supabase client is not properly initialized. Check your environment variables.');
+        },
+        signUp: () => {
+          throw new Error('Supabase client is not properly initialized. Check your environment variables.');
+        },
+        signOut: () => {
+          throw new Error('Supabase client is not properly initialized. Check your environment variables.');
+        },
+        getSession: () => {
+          throw new Error('Supabase client is not properly initialized. Check your environment variables.');
+        },
+      },
+    } as any;
+  }
+  return createClient(url, key);
+};
 
 // Create a Supabase client with the public anon key (for client-side usage)
-export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseClient = createSupabaseClient(supabaseUrl, supabaseAnonKey);
 
 // Create a Supabase client with the service role key (for server-side usage)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+export const supabaseAdmin = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey);
 
 export type Database = {
   public: {
