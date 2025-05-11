@@ -10,10 +10,21 @@ import { ProductList } from '@/components/iqr/dashboard/productlist';
 import { Analytics } from '@/components/iqr/dashboard/analyticsoverview';
 import { MessageLogs } from '@/components/iqr/dashboard/massagelogs';
 
+type BusinessInfo = {
+  legalName: string;
+  ein: string;
+  address: string;
+  website: string;
+  supportEmail: string;
+  supportPhone: string;
+  privacyPolicyUrl: string;
+  termsOfServiceUrl: string;
+};
+
 export default function IQRDashboard() {
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false);
   
-  const [businessInfo, setBusinessInfo] = useState({
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
     legalName: 'Acme Corporation',
     ein: '12-3456789',
     address: '123 Main Street, Suite 405, Anytown, CA 12345',
@@ -60,7 +71,7 @@ export default function IQRDashboard() {
         open={businessInfoOpen}
         onOpenChange={setBusinessInfoOpen}
         businessInfo={businessInfo}
-        onSave={(data) => {
+        onSave={(data: BusinessInfo): void => {
           setBusinessInfo(data);
           console.log('Saving business info:', data);
         }}

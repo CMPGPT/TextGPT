@@ -83,6 +83,23 @@
   }
 }
 
+/* Custom styles for markdown content */
+.prose * {
+  @apply text-black;
+}
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  @apply text-black font-semibold;
+}
+.prose p, .prose ul, .prose ol, .prose li, .prose blockquote {
+  @apply text-black;
+}
+.prose a {
+  @apply text-blue-600 hover:text-blue-800;
+}
+.prose code, .prose pre {
+  @apply text-black bg-gray-100;
+}
+
 /* Custom animations for typewriter effect */
 .animate-typewriter {
   overflow: hidden;
