@@ -17,6 +17,10 @@ const nextConfig = {
   trailingSlash: false,
   // Output standalone builds for better performance
   output: 'standalone',
+  // Ignore punycode deprecation warning
+  experimental: {
+    serverComponentsExternalPackages: ["punycode"],
+  },
   // Add any additional configuration here
 };
 

@@ -88,7 +88,7 @@ export function parseFunctionCall(functionCall: any): FunctionCall | null {
     try {
       parsedArgs = JSON.parse(args);
       success = true;
-    } catch (parseError) {
+    } catch (_parseError) {
       console.warn(`[OPENAI] Initial JSON parse failed, attempting to fix JSON: ${args}`);
       
       // Second attempt: try to extract valid JSON by finding the first '{' and last '}'
@@ -102,7 +102,7 @@ export function parseFunctionCall(functionCall: any): FunctionCall | null {
           parsedArgs = JSON.parse(potentialJson);
           success = true;
         }
-      } catch (extractError) {
+      } catch (_extractError) {
         console.warn('[OPENAI] JSON extraction failed');
       }
       
@@ -124,7 +124,7 @@ export function parseFunctionCall(functionCall: any): FunctionCall | null {
               // Merge all properties into one object
               Object.assign(allObjects, obj);
               success = true;
-            } catch (objError) {
+            } catch (_objError) {
               console.warn(`[OPENAI] Failed to parse object segment: ${objectStr}`);
             }
             
@@ -135,7 +135,7 @@ export function parseFunctionCall(functionCall: any): FunctionCall | null {
             console.log(`[OPENAI] Successfully merged multiple JSON objects: ${JSON.stringify(allObjects)}`);
             parsedArgs = allObjects;
           }
-        } catch (mergeError) {
+        } catch (_mergeError) {
           console.warn('[OPENAI] Failed to merge JSON objects');
         }
       }
@@ -154,7 +154,7 @@ export function parseFunctionCall(functionCall: any): FunctionCall | null {
           console.log(`[OPENAI] Cleaned JSON: ${cleanedJson}`);
           parsedArgs = JSON.parse(cleanedJson);
           success = true;
-        } catch (cleanError) {
+        } catch (_cleanError) {
           console.error('[OPENAI] All JSON parsing attempts failed');
         }
       }
@@ -232,11 +232,11 @@ export function stripMarkdown(text: string): string {
   text = text.replace(/`([^`]+)`/g, '$1');
   
   // Replace list items
-  text = text.replace(/^[\*\-]\s+(.*)$/gm, '$1');
+  text = text.replace(/^[*-]\s+(.*)$/gm, '$1');
   text = text.replace(/^\d+\.\s+(.*)$/gm, '$1');
   
   // Replace links with just the text
-  text = text.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
   
   return text;
 } 

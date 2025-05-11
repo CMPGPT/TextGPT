@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -51,7 +50,7 @@ interface Message {
 }
 
 export const MessageLogs = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages] = useState<Message[]>([
     {
       id: '1',
       phoneNumber: '+1 555-123-4567',

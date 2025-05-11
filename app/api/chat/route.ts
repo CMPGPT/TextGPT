@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { openai, functionSchemas, parseFunctionCall, stripMarkdown } from '@/lib/openai';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic';
+
 // Default system prompt if no persona is set
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful, friendly AI assistant. Your goal is to provide accurate and helpful information to the user.
 
@@ -160,7 +163,7 @@ export async function POST(req: NextRequest) {
     console.log(`[CHAT] Retrieved ${historyMessages.length} history messages`);
     
     // Build the system prompt based on the user's persona
-    let systemPrompt = user.personas?.prompt || DEFAULT_SYSTEM_PROMPT;
+    const systemPrompt = user.personas?.prompt || DEFAULT_SYSTEM_PROMPT;
     
     // Extract helpful context about the user's most recent message
     const lastUserMessage = messages.filter((m: {role: string, content: string}) => m.role === 'user').pop()?.content || '';
@@ -302,7 +305,6 @@ const OpenAIStream = (
 ) => {
   const { onCompletion, user, systemPrompt, historyMessages = [], messages = [] } = options;
   
-  let counter = 0;
   let completion = '';
   let functionCallUsed = false;
   let isProcessingFunctionCall = false;
@@ -381,48 +383,52 @@ const OpenAIStream = (
                       
                     case 'update_user_profile':
                       // Validate input data before passing to function
-                      const profileData: Record<string, any> = {};
-                      let hasValidData = false;
+                      {
+                        const profileData: Record<string, any> = {};
+                        let hasValidData = false;
                       
-                      // Only include fields that are explicitly provided and not undefined
-                      if (functionCall.arguments?.name !== undefined) {
-                        profileData.name = functionCall.arguments.name;
-                        hasValidData = true;
-                      }
+                        // Only include fields that are explicitly provided and not undefined
+                        if (functionCall.arguments?.name !== undefined) {
+                          profileData.name = functionCall.arguments.name;
+                          hasValidData = true;
+                        }
                       
-                      if (functionCall.arguments?.age !== undefined) {
-                        // Convert age to number or null if invalid
-                        const ageNum = Number(functionCall.arguments.age);
-                        profileData.age = !isNaN(ageNum) ? ageNum : null;
-                        hasValidData = hasValidData || !isNaN(ageNum);
-                      }
+                        if (functionCall.arguments?.age !== undefined) {
+                          // Convert age to number or null if invalid
+                          const ageNum = Number(functionCall.arguments.age);
+                          profileData.age = !isNaN(ageNum) ? ageNum : null;
+                          hasValidData = hasValidData || !isNaN(ageNum);
+                        }
                       
-                      if (functionCall.arguments?.occupation !== undefined) {
-                        profileData.occupation = functionCall.arguments.occupation;
-                        hasValidData = true;
-                      }
+                        if (functionCall.arguments?.occupation !== undefined) {
+                          profileData.occupation = functionCall.arguments.occupation;
+                          hasValidData = true;
+                        }
                       
-                      if (functionCall.arguments?.hobby !== undefined) {
-                        profileData.hobby = functionCall.arguments.hobby;
-                        hasValidData = true;
-                      }
+                        if (functionCall.arguments?.hobby !== undefined) {
+                          profileData.hobby = functionCall.arguments.hobby;
+                          hasValidData = true;
+                        }
                       
-                      // Only proceed if we have valid data to update
-                      if (hasValidData) {
-                        console.log(`[FUNCTION] Executing: update_user_profile with data: ${JSON.stringify(profileData)}`);
-                        functionResult = await handleUpdateUserProfile(user.id, profileData);
-                      } else {
-                        console.log(`[FUNCTION] Skipping update_user_profile due to no valid data`);
-                        functionResult = { 
-                          success: false, 
-                          message: 'No valid profile data provided'
-                        };
+                        // Only proceed if we have valid data to update
+                        if (hasValidData) {
+                          console.log(`[FUNCTION] Executing: update_user_profile with data: ${JSON.stringify(profileData)}`);
+                          functionResult = await handleUpdateUserProfile(user.id, profileData);
+                        } else {
+                          console.log(`[FUNCTION] Skipping update_user_profile due to no valid data`);
+                          functionResult = { 
+                            success: false, 
+                            message: 'No valid profile data provided'
+                          };
+                        }
                       }
                       break;
                       
                     case 'get_user_profile':
-                      console.log(`[FUNCTION] Executing: get_user_profile`);
-                      functionResult = await handleGetUserProfile(user.id);
+                      {
+                        console.log(`[FUNCTION] Executing: get_user_profile`);
+                        functionResult = await handleGetUserProfile(user.id);
+                      }
                       break;
                       
                     default:
@@ -516,22 +522,28 @@ const OpenAIStream = (
             isProcessingFunctionCall = false;
             currentToolCall = null;
           }
-          
-          counter++;
         }
+        
+        // After processing all chunks, call onCompletion with the full message
+        if (onCompletion) {
+          try {
+            await onCompletion(completion, functionCallUsed);
+          } catch (error) {
+            console.error('[OPENAI] Error in onCompletion callback:', error);
+          }
+        }
+        
+        console.log('[OPENAI] Stream complete');
+        controller.close();
       } catch (error) {
-        console.error(`[ERROR] Error processing OpenAI stream:`, error);
-        controller.enqueue(encoder.encode("\n\nSorry, there was an error processing your request. Please try again."));
-      }
-      
-      // Close the stream
-      controller.close();
-      
-      // Execute the onCompletion callback with the full message
-      if (onCompletion) {
-        await onCompletion(completion, functionCallUsed);
+        console.error('[OPENAI] Error in stream processing:', error);
+        controller.error(error);
       }
     },
+    cancel() {
+      // Handle cancellation of the stream if needed
+      console.log('[OPENAI] Stream cancelled');
+    }
   });
 };
 
@@ -706,7 +718,7 @@ async function handleDeleteUserData(userId: string) {
     console.log(`[FUNCTION] Deleting user data for ${userId}`);
   
     // Soft delete user by setting is_deleted to true and clearing personal data
-    const { data, error } = await supabaseAdmin
+    const { data: _data, error } = await supabaseAdmin
       .from('users')
       .update({ 
         is_deleted: true,

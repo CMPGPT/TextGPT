@@ -80,8 +80,8 @@ export function Chat() {
               </p>
             )}
             <p className="mt-6 text-xs text-black">
-              Try asking about "available personas" or "switch to [persona name]"
-              to change the assistant's personality!
+              Try asking about &quot;available personas&quot; or &quot;switch to [persona name]&quot;
+              to change the assistant&apos;s personality!
             </p>
           </div>
         ) : (

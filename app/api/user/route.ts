@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Mark this route as dynamic since it uses request.url
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -89,7 +92,7 @@ export async function DELETE(req: NextRequest) {
     }
     
     // Soft delete user by setting is_deleted to true and clearing personal data
-    const { data, error } = await supabaseAdmin
+    const { data: _data, error } = await supabaseAdmin
       .from('users')
       .update({ 
         is_deleted: true,
