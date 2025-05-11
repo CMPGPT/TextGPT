@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Verify OpenAI API key is set
-const verifyOpenAIConfig = () => {
+const _verifyOpenAIConfig = () => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OpenAI API key is missing. Please check your environment variables.');
     throw new Error('OpenAI API key is required. Please check your environment variables.');
