@@ -1,93 +1,123 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import Cookies from 'js-cookie';
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-textgpt-200 via-textgpt-100 to-textgpt-200 flex flex-col">
-      <nav className="py-6 px-6 md:px-10 flex justify-between items-center relative bg-transparent">
-        <div className="flex items-center">
-          <MessageSquare size={36} className="text-textgpt-300 mr-3" />
-          <span className="text-3xl font-bold text-white">TextG.pt</span>
-        </div>
-        <Link href="/">
-          <Button variant="ghost" className="text-white hover:text-textgpt-300 hover:bg-white/10">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
-          </Button>
-        </Link>
-      </nav>
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <Card className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 text-white">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-white">Sign In</CardTitle>
-            <CardDescription className="text-white/70">
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Since we're not using Supabase Auth but a custom authentication
+      // Get the user directly from our iqr_users table
+      const { data, error: queryError } = await supabase
+        .from('iqr_users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
+
+      if (queryError || !data) {
+        throw new Error('Invalid username or password');
+      }
+
+      // Fetch business info
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', data.business_id)
+        .single();
+
+      if (businessError) {
+        throw new Error('Error fetching business data');
+      }
+
+      // Set a cookie to indicate authentication
+      Cookies.set('iqr_authenticated', 'true', { expires: 1 }); // Expires in 1 day
+      
+      // Store business ID and user info in localStorage for session management
+      localStorage.setItem('iqr_business_id', data.business_id);
+      localStorage.setItem('iqr_user_id', data.id);
+      localStorage.setItem('iqr_username', data.username);
+      localStorage.setItem('iqr_user_role', data.role);
+      localStorage.setItem('iqr_business_name', businessData.name);
+      localStorage.setItem('iqr_business_number', businessData.iqr_number);
+      
+      // Redirect to dashboard
+      router.push('/iqr/dashboard');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to login. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#14213D] p-4">
+      <Card className="w-full max-w-md border-0">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">IQR Business Login</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to access your IQR dashboard
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                placeholder="email@example.com"
-                type="email"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                id="username"
+                type="text"
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-white">Password</Label>
-                <Link 
-                  href="/" 
-                  className="text-sm text-textgpt-300 hover:text-textgpt-400 hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                placeholder="••••••••"
                 type="password"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                placeholder="********"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full bg-textgpt-300 text-textgpt-200 hover:bg-textgpt-400">
-              Sign In
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
-            <div className="text-center text-white/70">
-              Don&apos;t have an account?{" "}
-              <Link 
-                href="/auth/register" 
-                className="text-textgpt-300 hover:text-textgpt-400 hover:underline"
-              >
-                Sign up
-              </Link>
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
-
-      <footer className="bg-textgpt-200/80 py-6 text-white/80">
-        <div className="container mx-auto px-6 max-w-7xl text-center">
-          <div className="flex justify-center items-center mb-4">
-            <MessageSquare size={24} className="text-textgpt-300 mr-2" />
-            <span className="text-xl font-bold text-white">TextG.pt</span>
-          </div>
-          <div className="flex justify-center space-x-4 mb-4">
-            <Link href="/terms" className="hover:text-textgpt-300">Terms</Link>
-            <Link href="/privacy" className="hover:text-textgpt-300">Privacy</Link>
-          </div>
-          <p>&copy; {new Date().getFullYear()} TextG.pt. All rights reserved.</p>
-        </div>
-      </footer>
+          </form>
+        </CardContent>
+        <CardFooter className="justify-center">
+          <p className="text-sm text-muted-foreground">
+            This is only for IQR business accounts.
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
 } 

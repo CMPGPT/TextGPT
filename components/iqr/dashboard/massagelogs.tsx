@@ -49,7 +49,11 @@ interface Message {
   productName: string;
 }
 
-export const MessageLogs = () => {
+interface MessageLogsProps {
+  businessId: string;
+}
+
+export const MessageLogs = ({ businessId }: MessageLogsProps) => {
   const [messages] = useState<Message[]>([
     {
       id: '1',

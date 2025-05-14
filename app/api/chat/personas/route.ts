@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       
       if (user) {
         // Mark the active persona
-        const personasWithActive = personas.map((persona) => ({
+        const personasWithActive = personas.map((persona: { id: string; name: string; short_desc: string }) => ({
           ...persona,
           active: persona.id === user.persona_id,
         }));
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     
     console.log(`[PERSONAS] No user found or no user ID provided`);
     // Return personas without active flag if no user is found
-    return new Response(JSON.stringify(personas.map(p => ({ ...p, active: false }))), {
+    return new Response(JSON.stringify(personas.map((p: { id: string; name: string; short_desc: string }) => ({ ...p, active: false }))), {
       headers: {
         'Content-Type': 'application/json',
       },

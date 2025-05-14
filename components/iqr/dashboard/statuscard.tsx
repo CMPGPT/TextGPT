@@ -16,9 +16,9 @@ interface StatusCardProps {
 export const StatusCard = ({
   tollFreeNumber = "+1 (888) 123-4567",
   numberStatus = "verified",
-  userName = "John Doe",
-  description = "IQR Dashboard for Acme Corporation's product information and customer support.",
-  businessName = "Acme Corporation",
+  userName = "User",
+  description = "IQR Dashboard for business product information and customer support.",
+  businessName = "Business",
   onInfoClick = () => console.log('Business info clicked')
 }: StatusCardProps) => {
   return (

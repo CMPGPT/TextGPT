@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -68,7 +67,9 @@ const StatCard = ({ title, value, icon, change }: StatCardProps) => (
   </Card>
 );
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+interface CustomTooltipProps extends TooltipProps<number, string> {}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-iqr-100 border border-iqr-300/20 p-3 rounded-md shadow-md">
@@ -88,7 +89,11 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
   return null;
 };
 
-export const Analytics = () => {
+interface AnalyticsProps {
+  businessId: string;
+}
+
+export const Analytics = ({ businessId }: AnalyticsProps) => {
   const [timeRange, setTimeRange] = useState('all');
   
   return (

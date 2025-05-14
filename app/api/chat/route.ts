@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
     
     const historyMessages = chatHistory
       ? chatHistory
-          .map(msg => ({
+          .map((msg: { role: string; content: string }) => ({
             role: msg.role,
             content: msg.content,
             ...(msg.role === 'function' ? { name: JSON.parse(msg.content).name } : {})
@@ -575,7 +575,7 @@ async function handleGetPersonas(userId: string) {
       console.error(`[FUNCTION] Error in debug personas query:`, debugError);
     } else {
       console.log(`[FUNCTION] Debug - Found ${allPersonas?.length || 0} personas in database:`, 
-        allPersonas?.map(p => p.name).join(', ') || 'none');
+        allPersonas?.map((p: { name: string }) => p.name).join(', ') || 'none');
     }
     
     // Now get the full persona data
@@ -609,14 +609,14 @@ async function handleGetPersonas(userId: string) {
     }
   
     // Mark the active persona
-    const personasWithActive = personas.map((persona) => ({
+    const personasWithActive = personas.map((persona: { id: string; name: string; short_desc: string }) => ({
       ...persona,
       active: user && persona.id === user.persona_id,
     }));
   
     console.log(`[FUNCTION] Successfully retrieved ${personasWithActive.length} personas`);
     console.log(`[FUNCTION] Active persona:`, 
-      personasWithActive.find(p => p.active)?.name || 'None');
+      personasWithActive.find((p: { id: string; name: string; short_desc: string; active: boolean }) => p.active)?.name || 'None');
     
     return { 
       success: true, 
@@ -647,7 +647,7 @@ async function handleSetPersona(userId: string, personaName: string) {
       .select('id, name');
       
     console.log(`[FUNCTION] Debug - Available personas:`, 
-      allPersonas?.map(p => p.name).join(', ') || 'none');
+      allPersonas?.map((p: { name: string }) => p.name).join(', ') || 'none');
     
     // First try an exact match (case insensitive)
     const { data: exactMatches, error: exactError } = await supabaseAdmin
@@ -715,7 +715,7 @@ async function handleSetPersona(userId: string, personaName: string) {
     console.log(`[FUNCTION] No persona matches found for: ${personaName}`);
     return { 
       success: false, 
-      message: `Persona "${personaName}" not found. Available personas: ${allPersonas?.map(p => p.name).join(', ') || 'none'}`
+      message: `Persona "${personaName}" not found. Available personas: ${allPersonas?.map((p: { name: string }) => p.name).join(', ') || 'none'}`
     };
   } catch (error) {
     console.error(`[FUNCTION] Error in handleSetPersona:`, error);
