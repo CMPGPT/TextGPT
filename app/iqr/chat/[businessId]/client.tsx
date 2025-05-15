@@ -83,7 +83,7 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
   }
 
   return (
-    <main className="flex h-screen w-full bg-iqr-100 text-iqr-400 overflow-hidden">
+    <main className="flex flex-col h-screen w-full bg-iqr-100 text-iqr-400 overflow-hidden">
       <IQRChat businessId={businessId} initialMessage={initialMessage} />
     </main>
   );

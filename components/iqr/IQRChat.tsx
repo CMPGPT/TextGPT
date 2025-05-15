@@ -55,21 +55,21 @@ export function IQRChat({ businessId, initialMessage }: IQRChatProps) {
   }, [initialMessage, initialMessageSent, isLoading, setInput, sendMessage]);
 
   return (
-    <div className="flex flex-col h-screen w-full max-w-4xl mx-auto">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto relative">
       {/* Header - Fixed at top */}
-      <div className="flex items-center justify-between py-4 px-4 border-b border-iqr-200/30 text-iqr-400 bg-iqr-100">
+      <div className="sticky top-0 z-10 flex items-center justify-between py-3 sm:py-4 px-3 sm:px-4 border-b border-iqr-200/30 text-iqr-400 bg-iqr-100">
         <div className="flex items-center space-x-2">
-          <ShoppingBag className="h-6 w-6 text-iqr-200" />
-          <h1 className="text-xl font-bold text-iqr-400">IQR.code</h1>
+          <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6 text-iqr-200" />
+          <h1 className="text-lg sm:text-xl font-bold text-iqr-400">IQR.code</h1>
         </div>
         
-        <div className="text-sm text-iqr-300">
+        <div className="text-xs sm:text-sm text-iqr-300">
           {business ? business.name : 'Product Chat'}
         </div>
       </div>
 
       {/* Message Container - Scrollable area with flex-grow */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-iqr-400">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 text-iqr-400 pb-24 sm:pb-28">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <h2 className="text-xl font-semibold mb-2 text-iqr-400">Welcome to Product Chat</h2>
@@ -104,19 +104,19 @@ export function IQRChat({ businessId, initialMessage }: IQRChatProps) {
       </div>
 
       {/* Input Container - Fixed at bottom */}
-      <div className="border-t border-iqr-200/30 p-4 bg-iqr-100">
+      <div className="fixed bottom-0 left-0 right-0 max-w-4xl mx-auto w-full border-t border-iqr-200/30 p-3 sm:p-4 bg-iqr-100">
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <Input
             value={input}
             onChange={handleInputChange}
             placeholder="Ask about our products..."
             disabled={isLoading}
-            className="flex-1 bg-iqr-100/70 border-iqr-200/30 text-iqr-400 focus-visible:ring-iqr-200 placeholder:text-iqr-300/50"
+            className="flex-1 bg-iqr-100/70 border-iqr-200/30 text-iqr-400 focus-visible:ring-iqr-200 placeholder:text-iqr-300/50 h-10 text-sm sm:text-base sm:h-11"
           />
           <Button 
             type="submit" 
             disabled={isLoading || !input.trim()}
-            className="bg-iqr-200 text-black hover:bg-iqr-200/80"
+            className="bg-iqr-200 text-black hover:bg-iqr-200/80 h-10 sm:h-11"
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
