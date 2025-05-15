@@ -36,8 +36,12 @@ export async function GET(req: NextRequest) {
       if (businessError) {
         console.error('[API] Error fetching business information:', businessError);
       } else if (businessData) {
-        response.business = businessData;
-        console.log(`[API] Retrieved business information: ${businessData.name}`);
+        // Ensure business name is properly formatted
+        response.business = {
+          ...businessData,
+          name: businessData.name ? businessData.name.trim() : 'Test Business'
+        };
+        console.log(`[API] Retrieved business information: ${response.business.name}`);
       }
     }
 
@@ -60,30 +64,14 @@ export async function GET(req: NextRequest) {
     // If no products were found, return a default product for development
     if (!productsData || productsData.length === 0) {
       console.log(`[API] No products found for business ${businessId}`);
-      // Use the test business ID for development
-      if (businessId === '11111111-1111-1111-1111-111111111111') {
-        response.products = [{
-          id: '8816aad6-ad51-42fa-bd7b-86d9b1b5820e',
-          name: 'OG kush',
-          description: 'this is good',
-          system_prompt: 'act as badass',
-          status: 'ready'
-        }];
-        
-        if (includeBusinessInfo && !response.business) {
-          response.business = {
-            id: businessId,
-            name: 'Test Business',
-            website_url: 'https://example.com',
-            support_email: 'support@example.com',
-            support_phone: '+123456789'
-          };
-        }
-      } else {
-        response.products = [];
-      }
+      // Return an empty array for products
+      response.products = [];
     } else {
-      response.products = productsData;
+      // Ensure product names are properly formatted
+      response.products = productsData.map(product => ({
+        ...product,
+        name: product.name ? product.name.trim() : product.name
+      }));
       console.log(`[API] Retrieved ${productsData.length} products for business ${businessId}`);
     }
 

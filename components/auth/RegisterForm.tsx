@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { UserRegistrationData, BusinessRegistrationData, SignupPayload } from "@/types/auth";
+import { UserRegistrationData, BusinessRegistrationData, BusinessDetailsData, SignupPayload } from "@/types/auth";
 import { registerUser } from "@/app/actions/auth";
-import { QrCode, ArrowRight, Check, Info, Lock, Mail, User, Globe, Building, Phone, Shield, FileText } from "lucide-react";
+import { QrCode, ArrowRight, Check, Info, Lock, Mail, User, Globe, Building, Phone, Shield, FileText, MapPin, Briefcase, MessageSquare, Users, Loader2 } from "lucide-react";
+import { useFormCache } from "@/hooks/useFormCache";
 
 import {
   Card,
@@ -17,18 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -38,83 +29,82 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Loader2 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
+import { createClient } from '@/lib/supabase/client';
 
-// Form validation schemas
-const userFormSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  description: z.string().optional(),
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms and conditions" }),
-  }),
-});
-
-const businessFormSchema = z.object({
-  name: z.string().min(2, "Business name is required"),
-  ein: z.string().min(9, "EIN/Tax ID is required"),
-  address: z.string().min(5, "Business address is required"),
-  website_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
-  support_email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
-  support_phone: z.string().optional(),
-  privacy_policy_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
-  terms_of_service_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
-});
+// Import separate form components
+import { AccountDetailsForm } from "./signup/AccountDetailsForm";
+import { BusinessInformationForm } from "./signup/BusinessInformationForm";
+import { AdditionalDetailsForm } from "./signup/AdditionalDetailsForm";
 
 export const RegisterForm = () => {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [userData, setUserData] = useState<UserRegistrationData | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  
+  // Use the useFormCache hook to persist form data during navigation
+  const [userData, setUserData] = useFormCache<UserRegistrationData | null>("signup_user_data", null);
+  const [businessData, setBusinessData] = useFormCache<BusinessRegistrationData | null>("signup_business_data", null);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showLoginRedirect, setShowLoginRedirect] = useState(false);
   const [generatedNumber, setGeneratedNumber] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [redirectSeconds, setRedirectSeconds] = useState(5);
+  const supabase = createClient();
 
-  // First form - User details
-  const userForm = useForm<z.infer<typeof userFormSchema>>({
-    resolver: zodResolver(userFormSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-      description: "",
-      termsAccepted: false,
-    },
-  });
-
-  // Second form - Business details
-  const businessForm = useForm<z.infer<typeof businessFormSchema>>({
-    resolver: zodResolver(businessFormSchema),
-    defaultValues: {
-      name: "",
-      ein: "",
-      address: "",
-      website_url: "",
-      support_email: "",
-      support_phone: "",
-      privacy_policy_url: "",
-      terms_of_service_url: "",
-    },
-  });
-
-  // Handle the first form submission
-  const onUserSubmit = (data: z.infer<typeof userFormSchema>) => {
-    // Extract only the user registration data without the terms field
-    const userRegData: UserRegistrationData = {
-      username: data.username,
-      email: data.email,
-      password: data.password,
-      description: data.description || '', // Ensure description is never undefined
-    };
-    setUserData(userRegData);
+  // Handle the account details submission
+  const handleAccountSubmit = (data: UserRegistrationData) => {
+    setUserData(data);
     setStep(2);
   };
 
-  // Handle the second form submission
-  const onBusinessSubmit = async (businessData: z.infer<typeof businessFormSchema>) => {
-    if (!userData) return;
+  // Handle the business information submission
+  const handleBusinessSubmit = (data: BusinessRegistrationData) => {
+    setBusinessData(data);
+    setStep(3);
+  };
+
+  // Handle countdown for redirect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (showSuccess && redirectSeconds > 0) {
+      timer = setTimeout(() => {
+        setRedirectSeconds(prev => prev - 1);
+      }, 1000);
+    } else if (showSuccess && redirectSeconds === 0) {
+      router.push("/iqr/dashboard");
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showSuccess, redirectSeconds, router]);
+
+  // Handle countdown for login redirect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (showLoginRedirect && redirectSeconds > 0) {
+      timer = setTimeout(() => {
+        setRedirectSeconds(prev => prev - 1);
+      }, 1000);
+    } else if (showLoginRedirect && redirectSeconds === 0) {
+      router.push("/iqr/login");
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showLoginRedirect, redirectSeconds, router]);
+
+  // Handle the additional details submission
+  const handleBusinessDetailsSubmit = async (detailsData: BusinessDetailsData) => {
+    if (!userData || !businessData) {
+      setError("Missing user or business data. Please complete all steps.");
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -123,19 +113,40 @@ export const RegisterForm = () => {
       const payload: SignupPayload = {
         user: userData,
         business: businessData,
+        businessDetails: detailsData
       };
 
       const result = await registerUser(payload);
 
+      // Success case - normal flow
       if (result.success) {
+        // Clear the form cache on successful registration
+        sessionStorage.removeItem("form_cache_signup_user_data");
+        sessionStorage.removeItem("form_cache_signup_business_data");
+        
         setGeneratedNumber(result.data?.iqr_number || "+1 (800) 000-0000");
         setShowSuccess(true);
+        setRedirectSeconds(5);
+      } 
+      // Handle case where auth and business were created but business details failed
+      else if (result.message?.includes('Failed to create user profile') && result.data?.user && result.data?.business) {
+        // This is a partial success - essential data was created
+        // Clear the form cache on partial success too
+        sessionStorage.removeItem("form_cache_signup_user_data");
+        sessionStorage.removeItem("form_cache_signup_business_data");
         
-        // Redirect to dashboard after 5 seconds
-        setTimeout(() => {
-          router.push("/iqr/dashboard");
-        }, 5000);
-      } else {
+        setGeneratedNumber(result.data?.iqr_number || "+1 (800) 000-0000");
+        setShowSuccess(true);
+        setRedirectSeconds(5);
+      }
+      // Account already exists case
+      else if (result.message?.includes('already exists')) {
+        setError("An account with this email already exists. Please login instead.");
+        setShowLoginRedirect(true);
+        setRedirectSeconds(5);
+      }
+      // Complete failure case
+      else {
         setError(result.message || "Registration failed. Please try again.");
       }
     } catch (err) {
@@ -144,6 +155,22 @@ export const RegisterForm = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Get progress percentage based on current step
+  const getProgressPercentage = () => {
+    switch (step) {
+      case 1: return 33;
+      case 2: return 66;
+      case 3: return 100;
+      default: return 33;
+    }
+  };
+
+  // Handle back button
+  const handleBack = () => {
+    if (step === 2) setStep(1);
+    else if (step === 3) setStep(2);
   };
 
   return (
@@ -156,13 +183,17 @@ export const RegisterForm = () => {
               <CardTitle className="text-2xl font-bold">IQR.codes</CardTitle>
             </div>
             <CardDescription className="text-iqr-300">
-              {step === 1 ? "Create your account to get started" : "Set up your business details"}
+              {step === 1 
+                ? "Create your account to get started" 
+                : step === 2 
+                  ? "Set up your business details" 
+                  : "Tell us more about your business"}
             </CardDescription>
             
             {/* Progress indicator */}
             <div className="pt-2">
               <Progress 
-                value={step === 1 ? 50 : 100} 
+                value={getProgressPercentage()} 
                 className="h-2 bg-iqr-100/30"
                 indicatorClassName="bg-iqr-200"
               />
@@ -173,345 +204,38 @@ export const RegisterForm = () => {
                 <span className={step === 2 ? "text-iqr-200 font-medium" : "text-iqr-300"}>
                   Business Information
                 </span>
+                <span className={step === 3 ? "text-iqr-200 font-medium" : "text-iqr-300"}>
+                  Additional Details
+                </span>
               </div>
             </div>
           </CardHeader>
 
           <CardContent>
-            {error && (
+            {error && !showLoginRedirect && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md text-red-500 text-sm">
                 {error}
               </div>
             )}
             
-            {step === 1 ? (
-              <Form {...userForm}>
-                <form onSubmit={userForm.handleSubmit(onUserSubmit)} className="space-y-4">
-                  <FormField
-                    control={userForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Username</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="Enter your username" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                              {...field} 
-                            />
-                            <User className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={userForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Email</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="Enter your email" 
-                              type="email" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                              {...field} 
-                            />
-                            <Mail className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={userForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="Create a secure password" 
-                              type="password" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                              {...field} 
-                            />
-                            <Lock className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={userForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Description (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Tell us a bit about yourself" 
-                            className="resize-none bg-iqr-50/10 border-iqr-200/20 text-iqr-400 min-h-[80px]" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={userForm.control}
-                    name="termsAccepted"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4 bg-iqr-100/20">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            className="data-[state=checked]:bg-iqr-200 data-[state=checked]:border-iqr-200"
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="text-iqr-300 text-sm">
-                            I agree to the{" "}
-                            <a 
-                              href="/terms" 
-                              className="text-iqr-200 hover:underline"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Terms and Conditions
-                            </a>{" "}
-                            and{" "}
-                            <a 
-                              href="/privacy" 
-                              className="text-iqr-200 hover:underline"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Privacy Policy
-                            </a>
-                          </FormLabel>
-                          <FormMessage className="text-red-400" />
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-iqr-200 hover:bg-iqr-200/90 text-iqr-50 flex items-center justify-center gap-2"
-                  >
-                    Continue
-                    <ArrowRight size={16} />
-                  </Button>
-                </form>
-              </Form>
-            ) : (
-              <Form {...businessForm}>
-                <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-4">
-                  <FormField
-                    control={businessForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Legal Business Name</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="Enter legal business name" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                              {...field} 
-                            />
-                            <Building className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={businessForm.control}
-                    name="ein"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">EIN/Tax ID</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="XX-XXXXXXX" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                              {...field} 
-                            />
-                            <Shield className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={businessForm.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Business Address</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Enter business address" 
-                            className="resize-none bg-iqr-50/10 border-iqr-200/20 text-iqr-400 min-h-[60px]" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={businessForm.control}
-                      name="website_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-iqr-300">Website URL</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                placeholder="https://your-site.com" 
-                                className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                                {...field} 
-                              />
-                              <Globe className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-red-400" />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={businessForm.control}
-                      name="support_email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-iqr-300">Support Email</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                placeholder="support@your-business.com" 
-                                className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                                {...field} 
-                              />
-                              <Mail className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-red-400" />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={businessForm.control}
-                    name="support_phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-iqr-300">Support Phone</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="(XXX) XXX-XXXX" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
-                              {...field} 
-                            />
-                            <Phone className="absolute left-3 top-2.5 h-5 w-5 text-iqr-200/60" />
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={businessForm.control}
-                      name="privacy_policy_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-iqr-300">Privacy Policy URL</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="https://site.com/privacy" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage className="text-red-400" />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={businessForm.control}
-                      name="terms_of_service_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-iqr-300">Terms of Service URL</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="https://site.com/terms" 
-                              className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage className="text-red-400" />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="sm:flex-1 border-iqr-200/30 text-iqr-300 hover:bg-iqr-100/20 hover:text-iqr-400"
-                      onClick={() => setStep(1)}
-                    >
-                      Back
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      className="sm:flex-1 bg-iqr-200 hover:bg-iqr-200/90 text-iqr-50 flex items-center justify-center gap-2"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating Account...
-                        </>
-                      ) : (
-                        <>
-                          Complete Registration
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+            {/* Render the appropriate form component based on current step */}
+            {step === 1 && (
+              <AccountDetailsForm onSubmit={handleAccountSubmit} />
+            )}
+            
+            {step === 2 && (
+              <BusinessInformationForm 
+                onSubmit={handleBusinessSubmit} 
+                onBack={handleBack}
+              />
+            )}
+            
+            {step === 3 && (
+              <AdditionalDetailsForm 
+                onSubmit={handleBusinessDetailsSubmit} 
+                onBack={handleBack}
+                isLoading={isLoading}
+              />
             )}
           </CardContent>
           
@@ -519,7 +243,7 @@ export const RegisterForm = () => {
             <p className="text-sm text-iqr-300">
               Already have an account?{" "}
               <Button variant="link" asChild className="text-iqr-200 p-0">
-                <a href="/iqr/login">Sign in</a>
+                <Link href="/iqr/login">Sign in</Link>
               </Button>
             </p>
           </CardFooter>
@@ -562,7 +286,37 @@ export const RegisterForm = () => {
               className="w-full bg-iqr-200 hover:bg-iqr-200/90 text-iqr-50"
               onClick={() => router.push("/iqr/dashboard")}
             >
-              Go to Dashboard
+              Go to Dashboard ({redirectSeconds}s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Exists Dialog */}
+      <Dialog open={showLoginRedirect} onOpenChange={() => {}}>
+        <DialogContent className="bg-iqr-50 text-iqr-400 border-iqr-200/20 max-w-md">
+          <DialogHeader>
+            <div className="mx-auto bg-amber-500/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+              <Info className="h-8 w-8 text-amber-500" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-center">Account Already Exists</DialogTitle>
+            <DialogDescription className="text-center text-iqr-300">
+              An account with this email address already exists in our system.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-4 bg-iqr-100/20 rounded-md text-sm">
+            <p className="text-iqr-300">
+              Please sign in to your existing account. If you've forgotten your password, you can use the "Forgot Password" feature on the login page.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              className="w-full bg-iqr-200 hover:bg-iqr-200/90 text-iqr-50"
+              onClick={() => router.push("/iqr/login")}
+            >
+              Go to Login ({redirectSeconds}s)
             </Button>
           </DialogFooter>
         </DialogContent>

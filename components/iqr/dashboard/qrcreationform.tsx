@@ -37,7 +37,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
   const [retryCount, setRetryCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking'>('idle');
 
-  // Verify the API endpoint is available when component mounts
+  // Verify the API endpoint is available when component mounts but don't show loading
   useEffect(() => {
     const checkApiEndpoint = async () => {
       try {
@@ -60,6 +60,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       }
     };
 
+    // Check the API silently without showing loading state
     checkApiEndpoint();
   }, []);
 
@@ -344,23 +345,16 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         
         {loading && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+            <div className="text-sm text-muted-foreground">
               <span>
                 {uploadProgress < 70 
-                  ? 'Uploading PDF...' 
+                  ? 'Processing...' 
                   : uploadProgress < 80 
-                    ? 'Extracting text...' 
+                    ? 'Processing...' 
                     : uploadProgress < 100 
-                      ? 'Processing chunks...' 
+                      ? 'Processing...' 
                       : 'Finalizing...'}
               </span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2.5">
-              <div 
-                className="bg-iqr-200 h-2.5 rounded-full" 
-                style={{width: `${uploadProgress}%`}}
-              ></div>
             </div>
           </div>
         )}
@@ -372,12 +366,10 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         >
           {loading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Processing...
             </>
           ) : apiStatus === 'checking' ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Checking API...
             </>
           ) : (

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "@/app/actions/auth";
 import { QrCode, Lock, Mail, ArrowRight } from "lucide-react";
+import { createClient } from "../../lib/supabase/client";
 
 import {
   Card,
@@ -30,7 +30,7 @@ import { Loader2 } from "lucide-react";
 
 // Form validation schema
 const loginFormSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -38,6 +38,7 @@ export const LoginForm = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   const form = useForm<z.infer<typeof loginFormSchema>>({
     resolver: zodResolver(loginFormSchema),
@@ -52,17 +53,31 @@ export const LoginForm = () => {
     setError(null);
 
     try {
-      const result = await signIn(data.email, data.password);
+      // Use client-side auth for simplicity and better cookie handling
+      const { data: authData, error: clientError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-      if (result.success) {
-        router.push("/iqr/dashboard");
+      if (clientError) {
+        console.error("Auth error:", clientError);
+        setError(clientError.message || "Login failed. Please check your credentials.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (authData && authData.session) {
+        console.log("Login successful, redirecting to dashboard...");
+        
+        // Force a complete navigation to ensure cookies are properly set
+        window.location.href = "/iqr/dashboard";
       } else {
-        setError(result.message || "Login failed. Please check your credentials.");
+        setError("Login succeeded but no session was created. Please try again.");
+        setIsLoading(false);
       }
     } catch (err) {
       console.error("Login error:", err);
       setError("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -99,7 +114,6 @@ export const LoginForm = () => {
                       <div className="relative">
                         <Input 
                           placeholder="Enter your email" 
-                          type="email" 
                           className="bg-iqr-50/10 border-iqr-200/20 text-iqr-400 pl-10" 
                           {...field} 
                         />

@@ -24,8 +24,10 @@ export function IQRChat({ businessId }: IQRChatProps) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Set a default business ID for development
-  const effectiveBusinessId = businessId || '11111111-1111-1111-1111-111111111111';
+  // Validate business ID
+  if (!businessId) {
+    console.error('No business ID provided to IQRChat component');
+  }
   
   // Scroll to bottom whenever messages change
   useEffect(() => {

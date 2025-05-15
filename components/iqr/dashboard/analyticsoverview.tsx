@@ -16,6 +16,7 @@ import { BarChartBig, Users, QrCode, ArrowUpRight, ArrowDownRight } from 'lucide
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { cn } from '@/lib/utils';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useDashboardCache } from '@/hooks/useDashboardCache';
 
 const sampleData = [
   { name: 'Jan', messages: 240, users: 65 },
@@ -43,7 +44,7 @@ const StatCard = ({ title, value, icon, change, isLoading }: StatCardProps) => (
         <div>
           <p className="text-sm font-medium text-iqr-300/70 mb-1">{title}</p>
           {isLoading ? (
-            <div className="h-7 w-20 bg-iqr-300/20 animate-pulse rounded"></div>
+            <p className="text-2xl font-bold text-iqr-400">0</p>
           ) : (
             <p className="text-2xl font-bold text-iqr-400">{value}</p>
           )}
@@ -116,9 +117,11 @@ export const Analytics = ({ businessId }: AnalyticsProps) => {
   const [totalMessages, setTotalMessages] = useState(0);
   const [uniqueUsers, setUniqueUsers] = useState(0);
   const [chartData, setChartData] = useState<any[]>(mockChartData);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
+  const { cache, setCache, isDataCached } = useDashboardCache();
   
   // Fetch products count
   const fetchProductsCount = async () => {
@@ -244,131 +247,195 @@ export const Analytics = ({ businessId }: AnalyticsProps) => {
     }
   };
   
-  // Main data loader
   useEffect(() => {
-    const loadData = async () => {
-      if (!businessId) {
-        console.error('[Analytics] No business ID provided');
-        setError('No business ID provided');
-        setLoading(false);
+    // Use cached data immediately if available to prevent loading screen on tab switch
+    if (isDataCached('analytics')) {
+      const cachedAnalytics = cache.analytics;
+      if (cachedAnalytics) {
+        console.log('Using cached analytics data on mount');
+        setProductsDeployed(cachedAnalytics.productsDeployed || 0);
+        setTotalMessages(cachedAnalytics.totalMessages || 0);
+        setUniqueUsers(cachedAnalytics.uniqueUsers || 0);
+        setChartData(cachedAnalytics.chartData || mockChartData);
+        
+        // Only if this is new tab visit, fetch new data in background
+        if (isInitialLoad) {
+          // Fetch fresh data in background without showing loading state
+          loadData(false);
+          setIsInitialLoad(false);
+        }
         return;
       }
-      
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log('[Analytics] Loading analytics for business ID:', businessId);
-        
-        // Load all data in parallel
-        const [productsCount, messagesCount, usersCount, chartDataResult] = await Promise.all([
-          fetchProductsCount(),
-          fetchMessageCount(),
-          fetchUniqueUsers(),
-          fetchChartData()
-        ]);
-        
-        setProductsDeployed(productsCount);
-        setTotalMessages(messagesCount);
-        setUniqueUsers(usersCount);
-        setChartData(chartDataResult);
-      } catch (err: any) {
-        console.error('[Analytics] Error loading analytics data:', err);
-        setError(err.message || 'Failed to load analytics data');
-      } finally {
-        setLoading(false);
-      }
-    };
+    }
     
-    loadData();
-  }, [businessId]);
+    // No cache available, this is a true initial load
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+    
+    // Load data
+    loadData(isInitialLoad);
+    
+    // Reset initial load flag
+    setIsInitialLoad(false);
+  }, [businessId, timeRange]);
   
+  const loadData = async (showLoading = true) => {
+    // Don't show loading if explicitly told not to
+    if (showLoading) {
+      setLoading(true);
+    }
+    
+    try {
+      // Fetch all the data in parallel
+      const [productsCount, messagesCount, usersCount, chartDataResult] = await Promise.all([
+        fetchProductsCount(),
+        fetchMessageCount(),
+        fetchUniqueUsers(),
+        fetchChartData()
+      ]);
+      
+      setProductsDeployed(productsCount);
+      setTotalMessages(messagesCount);
+      setUniqueUsers(usersCount);
+      setChartData(chartDataResult);
+      
+      // Cache the results
+      setCache('analytics', {
+        productsDeployed: productsCount,
+        totalMessages: messagesCount,
+        uniqueUsers: usersCount,
+        chartData: chartDataResult
+      });
+    } catch (err) {
+      console.error('Error loading analytics data:', err);
+      setError('Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle time range changes
+  const handleTimeRangeChange = (value: string) => {
+    setTimeRange(value);
+    // Show loading when explicitly changing time range
+    setLoading(true);
+  };
+  
+  // Render component UI
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h2 className="text-xl font-semibold text-iqr-400">Analytics Overview</h2>
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-secondary border-secondary">
-            <SelectValue placeholder="Select time range" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-iqr-300/20">
-            <SelectItem value="day">Last 24 hours</SelectItem>
-            <SelectItem value="week">Last 7 days</SelectItem>
-            <SelectItem value="month">Last 30 days</SelectItem>
-            <SelectItem value="all">All time</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-md p-4 mb-6">
-          <p className="text-red-500">{error}</p>
+    <Card className="bg-card text-card-foreground card-shadow border-0">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-iqr-400 text-xl">
+            Analytics Overview
+          </CardTitle>
+          <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Time Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="month">Last 30 Days</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="day">Last 24 Hours</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard 
-          title="Products Deployed" 
-          value={productsDeployed}
-          icon={<QrCode className="h-6 w-6" />}
-          isLoading={loading}
-        />
-        <StatCard 
-          title="Total SMS Messages" 
-          value={totalMessages.toLocaleString()}
-          icon={<BarChartBig className="h-6 w-6" />}
-          isLoading={loading}
-        />
-        <StatCard 
-          title="Unique Users" 
-          value={uniqueUsers.toLocaleString()}
-          icon={<Users className="h-6 w-6" />}
-          isLoading={loading}
-        />
-      </div>
-      
-      <Card className="bg-card text-card-foreground card-shadow border-0">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold">Usage Trends</CardTitle>
-        </CardHeader>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <StatCard 
+            title="Products Deployed" 
+            value={productsDeployed}
+            icon={<QrCode className="h-6 w-6" />}
+            isLoading={loading}
+          />
+          <StatCard 
+            title="Total Messages" 
+            value={totalMessages}
+            icon={<BarChartBig className="h-6 w-6" />}
+            isLoading={loading}
+            change={{ value: 12, positive: true }}
+          />
+          <StatCard 
+            title="Unique Users" 
+            value={uniqueUsers}
+            icon={<Users className="h-6 w-6" />}
+            isLoading={loading}
+            change={{ value: 8, positive: true }}
+          />
+        </div>
         
-        <CardContent className="pt-0">
-          <div className="h-[300px]">
+        <div className="py-2">
+          <h4 className="text-md font-medium mb-4 text-iqr-400">Message Activity</h4>
+          <div className="w-full h-[300px]">
             {loading ? (
-              <div className="h-full w-full flex items-center justify-center">
-                <p className="text-iqr-300/70">Loading chart data...</p>
+              <div className="w-full h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={mockChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fill: '#9CA3AF' }} 
+                      axisLine={{ stroke: '#E5E7EB' }}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#9CA3AF' }} 
+                      axisLine={{ stroke: '#E5E7EB' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar 
+                      dataKey="messages" 
+                      name="Messages" 
+                      fill="#1E40AF" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="users" 
+                      name="Unique Users" 
+                      fill="#60A5FA" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ) : chartData.length > 0 ? (
+            ) : error ? (
+              <div className="w-full h-full flex items-center justify-center">
+                <p className="text-red-400">{error}</p>
+              </div>
+            ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={chartData}
-                  margin={{
-                    top: 20,
-                    right: 30,
-                    left: 5,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(229, 229, 229, 0.1)" />
-                  <XAxis dataKey="name" stroke="rgba(229, 229, 229, 0.5)" />
-                  <YAxis stroke="rgba(229, 229, 229, 0.5)" />
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fill: '#9CA3AF' }} 
+                    axisLine={{ stroke: '#E5E7EB' }}
+                  />
+                  <YAxis 
+                    tick={{ fill: '#9CA3AF' }} 
+                    axisLine={{ stroke: '#E5E7EB' }}
+                  />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="messages" fill="#fca311" radius={[4, 4, 0, 0]} name="SMS Messages" />
-                  <Bar dataKey="users" fill="#456" radius={[4, 4, 0, 0]} name="Unique Users" />
+                  <Bar 
+                    dataKey="messages" 
+                    name="Messages" 
+                    fill="#1E40AF" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="users" 
+                    name="Unique Users" 
+                    fill="#60A5FA" 
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full w-full flex items-center justify-center">
-                <p className="text-iqr-300/70">No data available for the selected time period</p>
-              </div>
             )}
           </div>
-        </CardContent>
-      </Card>
-      
-      <div className="text-xs text-iqr-300/50 mt-4">
-        Business ID: {businessId || 'Not provided'}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

@@ -38,7 +38,7 @@ export interface UserRegistrationData {
   username: string;
   email: string;
   password: string;
-  description?: string;
+  full_name: string;
 }
 
 export interface BusinessRegistrationData {
@@ -52,9 +52,18 @@ export interface BusinessRegistrationData {
   terms_of_service_url?: string;
 }
 
+export interface BusinessDetailsData {
+  product_type?: string;
+  business_size?: string;
+  toll_free_use_case?: string;
+  message_volume?: string;
+  custom_message_volume?: string; // Kept for form handling, but will be merged with message_volume in the backend
+}
+
 export interface SignupPayload {
   user: UserRegistrationData;
   business: BusinessRegistrationData;
+  businessDetails?: BusinessDetailsData;
 }
 
 export interface AuthResult {

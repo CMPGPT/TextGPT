@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/drawer";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
+import { useDashboardCache } from '@/hooks/useDashboardCache';
 
 interface Product {
   id: string;
@@ -54,9 +55,11 @@ interface ProductListProps {
 
 export const ProductList = ({ businessId }: ProductListProps) => {
   const supabase = createClientComponentClient();
+  const { cache, setCache, isDataCached } = useDashboardCache();
   const [products, setProducts] = useState<Product[]>([]);
   const [qrCodes, setQRCodes] = useState<QRCode[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Selected product for drawers
@@ -87,13 +90,46 @@ export const ProductList = ({ businessId }: ProductListProps) => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    fetchProducts();
+    // Use cached data immediately if available to prevent loading screen on tab switch
+    if (isDataCached('products')) {
+      const cachedProducts = cache.products;
+      if (cachedProducts) {
+        console.log('Using cached products data on mount');
+        setProducts(cachedProducts.productsList || []);
+        
+        // Fetch QR codes without showing loading state
+        fetchQRCodes();
+        
+        // Only if this is new tab visit, fetch new data in background
+        if (isInitialLoad) {
+          // Fetch fresh data in background without showing loading state
+          fetchProducts(false);
+          setIsInitialLoad(false);
+        }
+        return;
+      }
+    }
+    
+    // No cache available, this is a true initial load
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+    
+    // Fetch data
+    fetchProducts(isInitialLoad);
     fetchQRCodes();
+    
+    // Reset initial load flag
+    setIsInitialLoad(false);
   }, [businessId]);
 
-  const fetchProducts = async () => {
-    try {
+  const fetchProducts = async (showLoading = true) => {
+    // Don't show loading if explicitly told not to
+    if (showLoading) {
       setLoading(true);
+    }
+    
+    try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -102,6 +138,9 @@ export const ProductList = ({ businessId }: ProductListProps) => {
       if (error) throw error;
       
       setProducts(data || []);
+      
+      // Cache the products data
+      setCache('products', data || []);
     } catch (err) {
       console.error('Error fetching products:', err);
       setError('Failed to load products');
@@ -137,9 +176,14 @@ export const ProductList = ({ businessId }: ProductListProps) => {
       if (error) throw error;
       
       // Update local state
-      setProducts(products.map(product => 
+      const updatedProducts = products.map(product => 
         product.id === id ? { ...product, status: newStatus } : product
-      ));
+      );
+      
+      setProducts(updatedProducts);
+      
+      // Update cache
+      setCache('products', updatedProducts);
     } catch (err) {
       console.error('Error updating product status:', err);
       setError('Failed to update product status');
@@ -256,20 +300,34 @@ export const ProductList = ({ businessId }: ProductListProps) => {
         if (updateError) throw updateError;
       }
       
-      // Refresh products list
-      await fetchProducts();
-      
       setEditSuccess('Product updated successfully');
       
-      // Close drawer after a delay
+      // Update local state and cache with edited product
+      const updatedProducts = products.map(product => 
+        product.id === selectedProduct.id 
+          ? { 
+              ...product, 
+              name: editedName, 
+              description: editedDescription,
+              system_prompt: editedSystemPrompt,
+              // Only update pdf_url if a new file was uploaded
+              ...(selectedFile ? { pdf_url: `products/${selectedProduct.id}/${selectedFile.name}` } : {})
+            } 
+          : product
+      );
+      
+      setProducts(updatedProducts);
+      
+      // Update cache
+      setCache('products', updatedProducts);
+      
+      // Close drawer after short delay
       setTimeout(() => {
         setIsProductDrawerOpen(false);
-        setEditSuccess(null);
-      }, 2000);
-      
+      }, 1500);
     } catch (err) {
       console.error('Error updating product:', err);
-      setEditError(err instanceof Error ? err.message : 'Failed to update product');
+      setEditError('Failed to update product');
     } finally {
       setEditLoading(false);
     }
@@ -414,7 +472,7 @@ export const ProductList = ({ businessId }: ProductListProps) => {
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-iqr-300/70">
-                      Loading products...
+                      {/* Removed loading text */}
                     </TableCell>
                   </TableRow>
                 ) : sortedProducts.length > 0 ? (

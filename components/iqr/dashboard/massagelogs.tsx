@@ -41,6 +41,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { X } from '@mui/icons-material';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDashboardCache } from '@/hooks/useDashboardCache';
 
 interface Message {
   id: string;
@@ -69,16 +70,61 @@ interface MessageLogsProps {
 }
 
 export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogsProps) => {
+  const { cache, setCache, isDataCached } = useDashboardCache();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [uniqueProducts, setUniqueProducts] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalMessages, setTotalMessages] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const messagesPerPage = 10;
   const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    // Use cached data immediately if available to prevent loading screen on tab switch
+    if (isDataCached('messages')) {
+      const cachedMessages = cache.messages;
+      if (cachedMessages && 
+          (cachedMessages.filters.searchQuery === searchQuery || !searchQuery) &&
+          cachedMessages.filters.selectedProduct === selectedProduct &&
+          cachedMessages.filters.date === date &&
+          cachedMessages.currentPage === currentPage) {
+        
+        console.log('Using cached messages data on mount');
+        setMessages(cachedMessages.messagesList || []);
+        setTotalMessages(cachedMessages.totalMessages || 0);
+        
+        // Fetch unique products without loading state
+        fetchUniqueProducts();
+        
+        // Only if this is new tab visit, fetch new data in background
+        if (isInitialLoad) {
+          // Fetch fresh data in background without showing loading state
+          fetchMessageCount();
+          fetchMessages(false);
+          setIsInitialLoad(false);
+        }
+        return;
+      }
+    }
+    
+    // No cache available, this is a true initial load
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+    
+    // Load data
+    fetchMessageCount();
+    fetchMessages(isInitialLoad);
+    fetchUniqueProducts();
+    
+    // Reset initial load flag
+    setIsInitialLoad(false);
+  }, [businessId, searchQuery, selectedProduct, date, currentPage]);
 
   const fetchMessageCount = async () => {
     try {
@@ -122,8 +168,12 @@ export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogs
     }
   };
   
-  const fetchMessages = async () => {
-    setLoading(true);
+  const fetchMessages = async (showLoading = true) => {
+    // Don't show loading if explicitly told not to
+    if (showLoading) {
+      setLoading(true);
+    }
+    
     try {
       // Calculate pagination range
       const from = (currentPage - 1) * messagesPerPage;
@@ -188,9 +238,22 @@ export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogs
         }));
 
         setMessages(formattedMessages);
+        
+        // Cache the messages data
+        setCache('messages', {
+          messagesList: formattedMessages,
+          totalMessages: totalMessages,
+          currentPage: currentPage,
+          filters: {
+            searchQuery: searchQuery,
+            selectedProduct: selectedProduct,
+            date: date
+          }
+        });
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setError('Failed to load messages');
     } finally {
       setLoading(false);
     }
@@ -201,18 +264,18 @@ export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogs
       const { data, error } = await supabase
         .from('products')
         .select('name')
-        .eq('business_id', businessId);
-        
+        .eq('business_id', businessId)
+        .order('name');
+      
       if (error) {
         throw error;
       }
       
       if (data) {
-        const products = data.map(product => product.name);
-        setUniqueProducts(products);
+        setUniqueProducts(data.map(product => product.name));
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching unique products:', error);
     }
   };
   
@@ -224,46 +287,33 @@ export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogs
         .eq('name', name)
         .eq('business_id', businessId)
         .single();
-        
+      
       if (error) {
-        throw error;
+        return null;
       }
       
       return data?.id;
     } catch (error) {
-      console.error('Error getting product ID:', error);
+      console.error('Error getting product ID by name:', error);
       return null;
     }
   };
-
-  useEffect(() => {
-    // Apply initial search query if provided
-    if (initialSearchQuery) {
-      setSearchQuery(initialSearchQuery);
-    }
-    
-    if (businessId) {
-      fetchUniqueProducts();
-    }
-  }, [businessId, initialSearchQuery]);
-
-  useEffect(() => {
-    if (businessId) {
-      fetchMessageCount();
-      fetchMessages();
-    }
-  }, [businessId, currentPage, selectedProduct, searchQuery, date]);
-
-  const formatDateTime = (dateTimeString: string) => {
-    const date = new Date(dateTimeString);
-    return format(date, 'MMM d, yyyy - h:mm a');
-  };
-
-  const truncateMessage = (message: string, maxLength: number = 100) => {
-    return message.length > maxLength ? message.substring(0, maxLength) + '...' : message;
+  
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1); // Reset to first page on new search
+    // The fetchMessages will be triggered by the state changes
   };
   
-  const totalPages = Math.ceil(totalMessages / messagesPerPage);
+  const formatDateTime = (dateTimeString: string) => {
+    const date = new Date(dateTimeString);
+    return format(date, 'MMM d, yyyy h:mm a');
+  };
+  
+  const truncateMessage = (message: string, maxLength: number = 100) => {
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+  };
   
   const handlePreviousPage = () => {
     if (currentPage > 1) {
@@ -272,7 +322,7 @@ export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogs
   };
   
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
+    if (currentPage < Math.ceil(totalMessages / messagesPerPage)) {
       setCurrentPage(currentPage + 1);
     }
   };
@@ -283,229 +333,198 @@ export const MessageLogs = ({ businessId, initialSearchQuery = '' }: MessageLogs
     setDate(undefined);
     setCurrentPage(1);
   };
-
+  
   const formatPhoneNumber = (phone: string): string => {
-    // Check if the phone is a UUID (which means it's not actually a phone number)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(phone)) {
-      return 'Anonymous User';
+    if (!phone || phone === 'Unknown') return phone;
+    
+    // Remove all non-numeric characters
+    const digitsOnly = phone.replace(/\D/g, '');
+    
+    // Check if it's a valid US phone number (10 digits)
+    if (digitsOnly.length === 10) {
+      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+    } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+      // Handle US numbers with leading 1
+      return `(${digitsOnly.slice(1, 4)}) ${digitsOnly.slice(4, 7)}-${digitsOnly.slice(7)}`;
     }
     
-    // Remove all non-digits
-    let cleaned = phone.replace(/\D/g, '');
-    
-    // Check if it's a valid phone number
-    if (cleaned.length < 10) {
-      return phone; // Return original if it doesn't look like a phone number
-    }
-    
-    // Format the phone number based on length
-    if (cleaned.length === 10) {
-      return `(${cleaned.substring(0, 3)}) ${cleaned.substring(3, 6)}-${cleaned.substring(6, 10)}`;
-    } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
-      return `+1 (${cleaned.substring(1, 4)}) ${cleaned.substring(4, 7)}-${cleaned.substring(7, 11)}`;
-    } else {
-      // For international numbers or other formats
-      return `+${cleaned.substring(0, cleaned.length - 10)} (${cleaned.substring(cleaned.length - 10, cleaned.length - 7)}) ${cleaned.substring(cleaned.length - 7, cleaned.length - 4)}-${cleaned.substring(cleaned.length - 4)}`;
-    }
+    // Return original if not matching expected format
+    return phone;
   };
-
+  
   return (
     <Card className="bg-card text-card-foreground card-shadow border-0">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xl font-semibold flex items-center">
-          <MessageSquare className="h-5 w-5 mr-2 text-iqr-200" />
+      <CardHeader className="pb-2">
+        <CardTitle className="text-iqr-400 text-xl">
           Message Logs
         </CardTitle>
       </CardHeader>
-      
-      <CardContent>
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-iqr-300/50" />
-            <Input 
-              placeholder="Search messages or phone numbers..." 
-              className="pl-10 bg-secondary border-secondary"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1); // Reset to first page on search
-              }}
-            />
+      <CardContent className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 flex-grow sm:items-end">
+            <div className="flex-1">
+              <form onSubmit={handleSearch}>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search messages or phone numbers..."
+                    className="pl-8"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </form>
+            </div>
+            
+            <div className="w-full sm:w-48">
+              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Product Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Products</SelectItem>
+                  {uniqueProducts.map((product) => (
+                    <SelectItem key={product} value={product}>
+                      {product}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={
+                      cn("w-full justify-start text-left font-normal sm:w-[240px]",
+                      !date && "text-muted-foreground")
+                    }
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : "Filter by date"}
+                    {date && (
+                      <Button 
+                        variant="ghost" 
+                        className="h-4 w-4 p-0 ml-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDate(undefined);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           
-          <Select 
-            value={selectedProduct} 
-            onValueChange={(value) => {
-              setSelectedProduct(value);
-              setCurrentPage(1); // Reset to first page on filter change
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[180px] bg-secondary border-secondary">
-              <SelectValue placeholder="All Products" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-iqr-300/20">
-              <SelectItem value="all">All Products</SelectItem>
-              {uniqueProducts.map(product => (
-                <SelectItem key={product} value={product}>{product}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full sm:w-[180px] justify-start text-left font-normal bg-secondary border-secondary"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, 'MMM d, yyyy') : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-card border-iqr-300/20">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(newDate) => {
-                  setDate(newDate);
-                  setCurrentPage(1); // Reset to first page on date change
-                }}
-                initialFocus
-                className="rounded-md border border-iqr-300/20"
-              />
-            </PopoverContent>
-          </Popover>
-          
-          {(date || searchQuery || selectedProduct !== 'all') && (
+          <div className="flex items-end">
             <Button 
-              variant="ghost" 
-              size="sm"
+              variant="outline" 
               onClick={resetFilters}
-              className="hidden sm:flex h-10"
+              disabled={!searchQuery && selectedProduct === 'all' && !date}
             >
               Reset Filters
             </Button>
-          )}
+          </div>
         </div>
         
-        <div className="overflow-x-auto">
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Phone Number</TableHead>
-                <TableHead className="w-[300px] md:w-[40%]">Message</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Message</TableHead>
                 <TableHead>Product</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Type</TableHead>
               </TableRow>
             </TableHeader>
-            
             <TableBody>
               {loading ? (
-                <>
-                  {Array(5).fill(0).map((_, index) => (
-                    <TableRow key={`loading-${index}`}>
-                      <TableCell><Skeleton className="h-6 w-36" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-28" /></TableCell>
-                    </TableRow>
-                  ))}
-                </>
-              ) : messages.length > 0 ? (
-                messages.map(message => (
-                  <TableRow key={message.id}>
-                    <TableCell className="font-medium">{formatPhoneNumber(message.phoneNumber)}</TableCell>
-                    <TableCell>
-                      <div className="truncate max-w-[300px] md:max-w-full">
-                        {truncateMessage(message.message)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDateTime(message.timestamp)}</TableCell>
-                    <TableCell>
-                      <Badge className={cn(
-                        "text-xs",
-                        message.status === 'received' 
-                          ? "bg-blue-600/20 text-blue-400" 
-                          : "bg-green-600/20 text-green-400"
-                      )}>
-                        {message.status === 'received' ? 'Received' : 'Sent'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{message.productName}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-iqr-300/70">
+                  <TableCell colSpan={5} className="text-center py-6">
+                    {/* Empty cell with no loading indicator */}
+                  </TableCell>
+                </TableRow>
+              ) : messages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                     No messages found matching your filters.
                   </TableCell>
                 </TableRow>
+              ) : (
+                messages.map((msg) => (
+                  <TableRow key={msg.id}>
+                    <TableCell className="whitespace-nowrap font-medium">
+                      {formatPhoneNumber(msg.phoneNumber)}
+                    </TableCell>
+                    <TableCell className="max-w-[300px]">
+                      {truncateMessage(msg.message)}
+                    </TableCell>
+                    <TableCell>{msg.productName}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDateTime(msg.timestamp)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={
+                        cn(
+                          msg.status === 'sent' 
+                            ? "bg-blue-500/20 text-blue-600" 
+                            : "bg-green-500/20 text-green-600"
+                        )
+                      }>
+                        {msg.status === 'sent' ? 'Sent' : 'Received'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-          <p className="text-sm text-iqr-300/70">
-            Showing <span className="font-medium">{messages.length}</span> of <span className="font-medium">{totalMessages}</span> messages
-          </p>
-          
-          {totalPages > 1 && (
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-8 w-8 bg-secondary border-secondary"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  // Show current page and adjacent pages
-                  let pageToShow;
-                  if (totalPages <= 5) {
-                    pageToShow = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageToShow = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageToShow = totalPages - 4 + i;
-                  } else {
-                    pageToShow = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={pageToShow}
-                      variant="outline"
-                      size="icon"
-                      className={cn(
-                        "h-8 w-8 bg-secondary border-secondary",
-                        currentPage === pageToShow && "bg-primary text-primary-foreground"
-                      )}
-                      onClick={() => setCurrentPage(pageToShow)}
-                    >
-                      <span className="text-xs">{pageToShow}</span>
-                    </Button>
-                  );
-                })}
-              </div>
-              
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-8 w-8 bg-secondary border-secondary"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-muted-foreground">
+            {loading ? (
+              <span></span>
+            ) : (
+              <>
+                Showing {Math.min((currentPage - 1) * messagesPerPage + 1, totalMessages)} to {Math.min(currentPage * messagesPerPage, totalMessages)} of {totalMessages} messages
+              </>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1 || loading}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleNextPage}
+              disabled={currentPage >= Math.ceil(totalMessages / messagesPerPage) || loading}
+            >
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

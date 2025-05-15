@@ -72,7 +72,13 @@ export function useIQRChat(businessId: string) {
       
       const data = await response.json();
       if (data.business) {
-        console.log(`[CLIENT] Retrieved business data: ${data.business.name}`);
+        console.log(`[CLIENT] Retrieved business data: ${data.business.name || 'Test Business'}`);
+        
+        // Ensure business name is always set
+        if (data.business && !data.business.name) {
+          data.business.name = 'Test Business';
+        }
+        
         setBusiness(data.business);
       }
     } catch (err) {

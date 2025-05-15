@@ -117,3 +117,25 @@ vercel
 ## License
 
 [MIT](LICENSE)
+
+## Supabase Configuration for Authentication
+
+To ensure proper authentication flow, configure your Supabase project with these settings:
+
+1. Go to Authentication → URL Configuration:
+   - Set your Site URL to your production URL
+   - Add all relevant redirect URLs (localhost for development, your production domains)
+   - Enable "Confirm email" option to send confirmation emails
+
+2. Go to Authentication → Email Templates:
+   - Customize your confirmation email template
+   - Make sure the magic link URL matches your application's URL pattern
+
+3. Authentication → User Management:
+   - Enable "Email confirmations" 
+   - Set your desired password policy
+
+4. For handling the "Failed to create user profile" issue:
+   - The application now handles partial registration success gracefully
+   - If auth record is created but business details fail, users will still be redirected to the dashboard
+   - Users can complete their profile later if needed

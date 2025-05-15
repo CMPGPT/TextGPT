@@ -11,6 +11,7 @@ import { ProductList } from '@/components/iqr/dashboard/productlist';
 import { Analytics } from '@/components/iqr/dashboard/analyticsoverview';
 import { MessageLogs } from '@/components/iqr/dashboard/massagelogs';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { DashboardCacheProvider } from '@/hooks/useDashboardCache';
 
 type BusinessInfo = {
   id: string;
@@ -36,8 +37,10 @@ export default function IQRDashboard() {
   const [userName, setUserName] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('create');
   const [searchFilter, setSearchFilter] = useState<string>('');
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const handleTabChange = (value: string) => {
+    // Don't show loading state when changing tabs
     setActiveTab(value);
     
     // Update URL without causing a navigation
@@ -59,43 +62,69 @@ export default function IQRDashboard() {
       setSearchFilter(searchParam);
     }
 
-    // Check for authentication
-    const businessId = localStorage.getItem('iqr_business_id');
-    const userName = localStorage.getItem('iqr_username');
-    
-    if (!businessId) {
-      router.push('/auth/login');
-      return;
-    }
-    
-    if (userName) {
-      setUserName(userName);
-    }
-
-    // Fetch business data
-    const fetchBusinessData = async () => {
+    // Check for authentication using Supabase Auth
+    const fetchUserAndBusinessData = async () => {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
-          .from('businesses')
-          .select('*')
-          .eq('id', businessId)
-          .single();
+        // Get the current session
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (error) throw error;
-        if (data) {
-          setBusinessInfo(data);
+        if (!session) {
+          // No valid session, redirect to login
+          router.push('/iqr/login');
+          return;
+        }
+        
+        // Fetch user information using RPC function for complete profile
+        const { data: profile, error: profileError } = await supabase
+          .rpc('get_user_complete_profile', { user_auth_id: session.user.id });
+
+        if (profileError) {
+          throw profileError;
+        }
+        
+        if (profile && profile.user) {
+          setUserName(profile.user.username || profile.user.full_name || session.user.email);
+        }
+        
+        // Use the user's business association to fetch business data
+        if (profile && profile.business) {
+          setBusinessInfo(profile.business);
+        } else {
+          // Fallback: Try to get business directly if RPC failed
+          const { data: iqrUser, error: iqrUserError } = await supabase
+            .from('iqr_users')
+            .select('business_id, username, full_name')
+            .eq('auth_uid', session.user.id)
+            .single();
+            
+          if (iqrUserError) throw iqrUserError;
+          if (iqrUser) {
+            // Set username from IQR users table
+            setUserName(iqrUser.username || iqrUser.full_name || session.user.email);
+            
+            // Fetch business data
+            const { data: business, error: businessError } = await supabase
+              .from('businesses')
+              .select('*')
+              .eq('id', iqrUser.business_id)
+              .single();
+              
+            if (businessError) throw businessError;
+            setBusinessInfo(business);
+          }
         }
       } catch (err) {
-        console.error('Error fetching business data:', err);
+        console.error('Error fetching user/business data:', err);
         setError('Failed to load business data. Please try again later.');
       } finally {
         setLoading(false);
+        setInitialLoad(false);
       }
     };
 
-    fetchBusinessData();
+    fetchUserAndBusinessData();
   }, [router, supabase, searchParams]);
 
   const handleSaveBusinessInfo = async (data: BusinessInfo) => {
@@ -125,7 +154,22 @@ export default function IQRDashboard() {
   };
 
   if (loading) {
-    return <div className="p-6 bg-[#14213D] min-h-screen flex items-center justify-center">Loading...</div>;
+    // Instead of showing a spinner, render the UI structure with minimal placeholder content
+    return (
+      <div className="p-6 bg-[#14213D] min-h-screen">
+        <Header />
+        <div className="mt-6 space-y-8">
+          {/* Placeholder for status card */}
+          <div className="p-6 bg-card rounded-lg h-32"></div>
+          
+          {/* Placeholder for tabs */}
+          <div className="p-4 bg-card rounded-lg">
+            <div className="h-10 bg-secondary rounded-lg w-1/3 mb-4"></div>
+            <div className="h-64 bg-muted rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !businessInfo) {
@@ -135,7 +179,7 @@ export default function IQRDashboard() {
           <h2 className="text-xl font-semibold mb-2">Error</h2>
           <p>{error || 'No business information found'}</p>
           <button 
-            onClick={() => router.push('/auth/login')}
+            onClick={() => router.push('/iqr/login')}
             className="mt-4 px-4 py-2 bg-iqr-200 rounded-md"
           >
             Back to Login
@@ -146,59 +190,60 @@ export default function IQRDashboard() {
   }
 
   return (
-    <div className="p-6 bg-[#14213D] min-h-screen">
-      <Header />
-      <div className="mt-6 space-y-8">
-        <StatusCard 
-          onInfoClick={() => setBusinessInfoOpen(true)}
-          tollFreeNumber={businessInfo.iqr_number}
-          numberStatus="verified"
-          userName={userName}
-          description={`IQR Dashboard for ${businessInfo.name}'s product information and customer support.`}
-          businessName={businessInfo.name}
-        />
+    <DashboardCacheProvider>
+      <div className="p-6 bg-[#14213D] min-h-screen">
+        <Header />
+        <div className="mt-6 space-y-8">
+          <StatusCard 
+            onInfoClick={() => setBusinessInfoOpen(true)}
+            tollFreeNumber={businessInfo.iqr_number}
+            numberStatus="verified"
+            userName={userName}
+            description={`IQR Dashboard for ${businessInfo.name}'s product information and customer support.`}
+            businessName={businessInfo.name}
+          />
+          
+          <Tabs defaultValue={activeTab} value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+            <TabsList className="bg-secondary">
+              <TabsTrigger value="create">Create Product</TabsTrigger>
+              <TabsTrigger value="products">Products & QR Codes</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="messages">Message Logs</TabsTrigger>
+            </TabsList>
+            
+            {/* Use TabsContent with forceMount to preserve component state between tab switches */}
+            <div className="mt-0">
+              <TabsContent value="create" forceMount className="p-4 bg-card rounded-lg mt-0" 
+                           style={{display: activeTab === 'create' ? 'block' : 'none'}}>
+                <QRCreationForm businessId={businessInfo.id} />
+              </TabsContent>
+              
+              <TabsContent value="products" forceMount className="p-4 bg-card rounded-lg mt-0"
+                           style={{display: activeTab === 'products' ? 'block' : 'none'}}>
+                <ProductList businessId={businessInfo.id} />
+              </TabsContent>
+              
+              <TabsContent value="analytics" forceMount className="p-4 bg-card rounded-lg mt-0"
+                           style={{display: activeTab === 'analytics' ? 'block' : 'none'}}>
+                <Analytics businessId={businessInfo.id} />
+              </TabsContent>
+              
+              <TabsContent value="messages" forceMount className="p-4 bg-card rounded-lg mt-0"
+                           style={{display: activeTab === 'messages' ? 'block' : 'none'}}>
+                <MessageLogs businessId={businessInfo.id} initialSearchQuery={searchFilter} />
+              </TabsContent>
+            </div>
+          </Tabs>
+        </div>
         
-        <Tabs defaultValue={activeTab} value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="bg-secondary">
-            <TabsTrigger value="create">Create Product</TabsTrigger>
-            <TabsTrigger value="products">Products & QR Codes</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="messages">Message Logs</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="create" className="mt-0">
-            <div className="p-4 bg-card rounded-lg">
-              <QRCreationForm businessId={businessInfo.id} />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="products" className="mt-0">
-            <div className="p-4 bg-card rounded-lg">
-              <ProductList businessId={businessInfo.id} />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="analytics" className="mt-0">
-            <div className="p-4 bg-card rounded-lg">
-              <Analytics businessId={businessInfo.id} />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="messages" className="mt-0">
-            <div className="p-4 bg-card rounded-lg">
-              <MessageLogs businessId={businessInfo.id} initialSearchQuery={searchFilter} />
-            </div>
-          </TabsContent>
-        </Tabs>
+        <BusinessInfoModal 
+          open={businessInfoOpen}
+          onOpenChange={setBusinessInfoOpen}
+          businessInfo={businessInfo}
+          onSave={handleSaveBusinessInfo}
+        />
       </div>
-      
-      <BusinessInfoModal 
-        open={businessInfoOpen}
-        onOpenChange={setBusinessInfoOpen}
-        businessInfo={businessInfo}
-        onSave={handleSaveBusinessInfo}
-      />
-    </div>
+    </DashboardCacheProvider>
   );
 }
 

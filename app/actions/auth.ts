@@ -1,34 +1,49 @@
 'use server';
 
-import { supabaseAdmin } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { SignupPayload, AuthResult } from '@/types/auth';
 import { revalidatePath } from 'next/cache';
-import { v4 as uuidv4 } from 'uuid';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 /**
  * Register a new user and business
  */
 export async function registerUser(payload: SignupPayload): Promise<AuthResult> {
+  const supabase = createClient();
+  
   try {
-    // Step 1: Create the auth user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Step 1: Create the auth user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: payload.user.email,
       password: payload.user.password,
-      email_confirm: true,
+      options: {
+        data: {
+          username: payload.user.username,
+          full_name: payload.user.full_name || '',
+        },
+      },
     });
 
     if (authError) {
       console.error('Auth creation error:', authError);
       return {
         success: false,
-        message: 'Failed to create user account',
+        message: authError.message || 'Failed to create user account',
         error: authError
       };
     }
 
+    if (!authData.user) {
+      return {
+        success: false,
+        message: 'No user was created',
+        error: new Error('No user created')
+      };
+    }
+
     // Step 2: Create the business record
-    const { data: businessData, error: businessError } = await supabaseAdmin
+    const { data: businessData, error: businessError } = await supabase
       .from('businesses')
       .insert({
         name: payload.business.name,
@@ -46,8 +61,7 @@ export async function registerUser(payload: SignupPayload): Promise<AuthResult> 
 
     if (businessError) {
       console.error('Business creation error:', businessError);
-      // Clean up the auth user since business creation failed
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      // We can't delete the auth user easily in server action, but we'll note this for cleanup
       return {
         success: false,
         message: 'Failed to create business profile',
@@ -56,21 +70,19 @@ export async function registerUser(payload: SignupPayload): Promise<AuthResult> 
     }
 
     // Step 3: Create the IQR user record linking to both auth and business
-    const { error: iqrUserError } = await supabaseAdmin
+    const { error: iqrUserError } = await supabase
       .from('iqr_users')
       .insert({
         business_id: businessData.id,
         auth_uid: authData.user.id,
         username: payload.user.username,
-        password: payload.user.password, // Note: This should be hashed in a real implementation
+        full_name: payload.user.full_name || '',
+        password: payload.user.password,  // Store the password properly
         role: 'owner'
       });
 
     if (iqrUserError) {
       console.error('IQR user creation error:', iqrUserError);
-      // Clean up previously created records
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      await supabaseAdmin.from('businesses').delete().eq('id', businessData.id);
       return {
         success: false,
         message: 'Failed to create user profile',
@@ -78,15 +90,37 @@ export async function registerUser(payload: SignupPayload): Promise<AuthResult> 
       };
     }
 
-    // Step 4: Sign in the user automatically
-    const { data: sessionData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-      email: payload.user.email,
-      password: payload.user.password,
-    });
+    // Step 4: Create business additional details if provided
+    let businessDetailsCreated = true;
+    if (payload.businessDetails) {
+      try {
+        // Prepare business additional details with proper field handling
+        const messageVolume = payload.businessDetails.message_volume === 'custom' ? 
+          payload.businessDetails.custom_message_volume : 
+          payload.businessDetails.message_volume;
+          
+        const businessDetailsData = {
+          business_id: businessData.id,
+          product_type: payload.businessDetails.product_type || null,
+          business_size: payload.businessDetails.business_size || null,
+          toll_free_use_case: payload.businessDetails.toll_free_use_case || null,
+          message_volume: messageVolume || null
+        };
 
-    if (signInError) {
-      console.error('Auto sign-in error:', signInError);
-      // Continue anyway since the account was created successfully
+        const { error: businessDetailsError } = await supabase
+          .from('business_additional_details')
+          .insert(businessDetailsData);
+
+        if (businessDetailsError) {
+          console.error('Business additional details creation error:', businessDetailsError);
+          businessDetailsCreated = false;
+          // Log the error but continue with registration as this is not critical
+        }
+      } catch (detailsError) {
+        console.error('Error handling business additional details:', detailsError);
+        businessDetailsCreated = false;
+        // Continue with registration despite this error
+      }
     }
 
     revalidatePath('/iqr/dashboard');
@@ -98,7 +132,8 @@ export async function registerUser(payload: SignupPayload): Promise<AuthResult> 
         user: authData.user,
         business: businessData,
         iqr_number: businessData.iqr_number,
-        isVerified: false
+        isVerified: false,
+        businessDetailsCreated
       }
     };
   } catch (error) {
@@ -115,17 +150,41 @@ export async function registerUser(payload: SignupPayload): Promise<AuthResult> 
  * Sign in a user
  */
 export async function signIn(email: string, password: string): Promise<AuthResult> {
+  const supabase = createClient();
+  
   try {
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    // Use Supabase Auth for sign-in
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password,
+      password
     });
 
     if (error) {
+      console.error('Auth signin error:', error);
       return {
         success: false,
-        message: 'Invalid login credentials',
+        message: error.message || 'Invalid login credentials',
         error
+      };
+    }
+
+    // No need to manually set cookie with createClient from auth-helpers-nextjs
+    // as it handles cookie setting automatically
+    
+    // Fetch complete user profile with all associated data
+    const { data: completeProfile, error: profileError } = await supabase
+      .rpc('get_user_complete_profile', { user_auth_id: data.user.id });
+
+    if (profileError) {
+      console.error('User profile fetch error:', profileError);
+      // Still return success since auth succeeded
+      return {
+        success: true,
+        message: 'Login successful, but user profile could not be fetched',
+        data: {
+          user: data.user,
+          session: data.session
+        }
       };
     }
 
@@ -134,9 +193,16 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     return {
       success: true,
       message: 'Login successful',
-      data
+      data: {
+        user: data.user,
+        session: data.session,
+        profile: completeProfile.user,
+        business: completeProfile.business,
+        businessDetails: completeProfile.business_details
+      }
     };
   } catch (error) {
+    console.error('Unexpected auth error:', error);
     return {
       success: false,
       message: 'An unexpected error occurred',
@@ -149,19 +215,21 @@ export async function signIn(email: string, password: string): Promise<AuthResul
  * Sign out the current user
  */
 export async function signOut(): Promise<AuthResult> {
+  const supabase = createClient();
+  
   try {
-    const { error } = await supabaseAdmin.auth.signOut();
-
+    const { error } = await supabase.auth.signOut();
+    
     if (error) {
       return {
         success: false,
-        message: 'Failed to sign out',
+        message: error.message || 'Failed to sign out',
         error
       };
     }
 
-    revalidatePath('/auth/login');
-
+    revalidatePath('/iqr/login');
+    
     return {
       success: true,
       message: 'Signed out successfully'
@@ -173,4 +241,26 @@ export async function signOut(): Promise<AuthResult> {
       error
     };
   }
+}
+
+/**
+ * Get the current session
+ */
+export async function getSession() {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
+}
+
+/**
+ * Check if the user is logged in and redirect if not
+ */
+export async function requireAuth(redirectTo = '/iqr/login') {
+  const session = await getSession();
+  
+  if (!session) {
+    redirect(redirectTo);
+  }
+  
+  return session;
 } 

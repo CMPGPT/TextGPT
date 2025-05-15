@@ -397,11 +397,12 @@ function buildSystemPrompt(
   relevantChunks: any[]
 ): string {
   // Base system prompt
-  let systemPrompt = `You are a helpful product assistant for ${business.name}.`;
+  const businessName = business.name ? business.name.trim() : "IQR Business";
+  let systemPrompt = `You are a helpful product assistant for ${businessName}.`;
   
   // Add business contact information
   systemPrompt += `\n\nBusiness Information:`;
-  systemPrompt += `\n- Name: ${business.name}`;
+  systemPrompt += `\n- Name: ${businessName}`;
   
   if (business.website_url) {
     systemPrompt += `\n- Website: ${business.website_url}`;
@@ -427,8 +428,8 @@ function buildSystemPrompt(
   
   systemPrompt += `\nIf you don't have enough information to answer the user's question accurately, use the appropriate function to fetch more details. Be friendly, helpful, and concise in your responses. Always prioritize accuracy over speculation.`;
   
-  // Add instruction to avoid Markdown formatting
-  systemPrompt += "\n\nIMPORTANT: DO NOT format your responses using Markdown. Provide plain text responses without any special formatting.";
+  // Add instruction to avoid Markdown formatting and preserve special characters
+  systemPrompt += "\n\nIMPORTANT: DO NOT format your responses using Markdown. Provide plain text responses without any special formatting. Preserve all special characters, abbreviations, and proper nouns exactly as written, especially product names like 'OG Kush' rather than 'O Kush'.";
   
   return systemPrompt;
 }
@@ -437,12 +438,12 @@ function buildSystemPrompt(
 async function handleGetProductDetails(businessId: string, products: any[], productName: string, attribute?: string): Promise<any> {
   console.log(`[API] Running function: handleGetProductDetails for "${productName}"`);
   
-  // First try exact match
+  // First try exact match (case-insensitive)
   let matchedProduct = products.find(p => 
     p.name.toLowerCase() === productName.toLowerCase()
   );
   
-  // If no exact match, try partial match
+  // If no exact match, try partial match (case-insensitive)
   if (!matchedProduct) {
     matchedProduct = products.find(p => 
       p.name.toLowerCase().includes(productName.toLowerCase()) ||
@@ -457,9 +458,16 @@ async function handleGetProductDetails(businessId: string, products: any[], prod
     };
   }
   
+  // Create a copy with properly preserved name and description
+  const formattedProduct = {
+    ...matchedProduct,
+    name: matchedProduct.name.trim(),
+    description: matchedProduct.description
+  };
+  
   // Return the product details
   return {
-    product: matchedProduct
+    product: formattedProduct
   };
 }
 
@@ -500,9 +508,15 @@ async function handleRelatedProductsSearch(businessId: string, searchTerm: strin
 async function handleGetBusinessInformation(business: any, attribute?: string): Promise<any> {
   console.log(`[API] Running function: handleGetBusinessInformation ${attribute ? `for attribute: ${attribute}` : ''}`);
   
+  // Ensure business name is always properly formatted
+  const formattedBusiness = {
+    ...business,
+    name: business.name ? business.name.trim() : 'Test Business'
+  };
+  
   if (!attribute) {
     // Return all business information
-    return { business };
+    return { business: formattedBusiness };
   }
   
   // Handle specific attribute requests
@@ -511,23 +525,23 @@ async function handleGetBusinessInformation(business: any, attribute?: string): 
   if (attributeLower.includes('contact') || attributeLower.includes('support')) {
     return {
       contact_information: {
-        website: business.website_url,
-        email: business.support_email,
-        phone: business.support_phone
+        website: formattedBusiness.website_url,
+        email: formattedBusiness.support_email,
+        phone: formattedBusiness.support_phone
       }
     };
   }
   
   if (attributeLower.includes('website')) {
-    return { website: business.website_url };
+    return { website: formattedBusiness.website_url };
   }
   
   if (attributeLower.includes('name') || attributeLower.includes('about')) {
     return { 
-      name: business.name
+      name: formattedBusiness.name
     };
   }
   
   // Return all information if attribute is not recognized
-  return { business };
+  return { business: formattedBusiness };
 } 
