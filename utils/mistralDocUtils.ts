@@ -28,6 +28,18 @@ interface MistralOcrResponse {
  */
 export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Promise<MistralDocumentResponse> {
   try {
+    // Check if Mistral API key is available
+    if (!process.env.MISTRAL_API_KEY) {
+      console.warn('MISTRAL_API_KEY is not set - returning fallback response');
+      return {
+        text: "PDF processing requires Mistral API Key. Please configure the environment variable.",
+        pages: [{
+          page_num: 1,
+          text: "PDF processing requires Mistral API Key. Please configure the environment variable."
+        }]
+      };
+    }
+    
     // Convert buffer to base64
     const base64Pdf = pdfBuffer.toString('base64');
     
@@ -110,6 +122,15 @@ export async function processPdfToChunks(
   fileName: string
 ): Promise<{ content: string; metadata: { page: number; section: string } }[]> {
   try {
+    // Check if Mistral API key is available
+    if (!process.env.MISTRAL_API_KEY) {
+      console.warn('MISTRAL_API_KEY is not set - creating placeholder chunk');
+      return [{
+        content: `PDF processing requires Mistral API Key. The file "${fileName}" was uploaded but text extraction was skipped. Please configure the MISTRAL_API_KEY environment variable.`,
+        metadata: { page: 1, section: 'Configuration Required' }
+      }];
+    }
+    
     // Extract text from PDF using Mistral
     console.log(`Extracting text from ${fileName} using Mistral OCR API`);
     const extractionResult = await extractTextFromMistral(pdfBuffer);
