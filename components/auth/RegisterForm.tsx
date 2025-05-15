@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { z as _z } from "zod";
+import { useForm as _useForm } from "react-hook-form";
+import { zodResolver as _zodResolver } from "@hookform/resolvers/zod";
 import { UserRegistrationData, BusinessRegistrationData, BusinessDetailsData, SignupPayload } from "@/types/auth";
 import { registerUser } from "@/app/actions/auth";
-import { QrCode, ArrowRight, Check, Info, Lock, Mail, User, Globe, Building, Phone, Shield, FileText, MapPin, Briefcase, MessageSquare, Users, Loader2 } from "lucide-react";
+import { QrCode, ArrowRight as _ArrowRight, Check, Info, Lock as _Lock, Mail as _Mail, User as _User, Globe as _Globe, Building as _Building, Phone, Shield as _Shield, FileText as _FileText, MapPin as _MapPin, Briefcase as _Briefcase, MessageSquare as _MessageSquare, Users as _Users, Loader2 as _Loader2 } from "lucide-react";
 import { useFormCache } from "@/hooks/useFormCache";
 
 import {
@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
+import { Form as _Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,7 +51,7 @@ export const RegisterForm = () => {
   const [generatedNumber, setGeneratedNumber] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [redirectSeconds, setRedirectSeconds] = useState(5);
-  const supabase = createClient();
+  const _supabase = createClient();
 
   // Handle the account details submission
   const handleAccountSubmit = (data: UserRegistrationData) => {

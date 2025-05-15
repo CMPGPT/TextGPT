@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+    const { data: _uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(bucketName)
       .upload(filePath, fileBuffer, {
         contentType: file.type,
@@ -111,13 +111,26 @@ export async function POST(request: NextRequest) {
 
     console.log(`Product created successfully with ID: ${productId}`);
 
-    // 3. Create default QR code
+    // Determine the base URL based on environment
+    // For server-side, we need to rely on environment variables to detect production/development
+    const isProduction = process.env.NODE_ENV === 'production';
+    const baseUrl = isProduction 
+      ? 'https://textg.pt' 
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    // Generate the dynamic URL with product information and appropriate domain
+    const encodedProductName = encodeURIComponent(productName);
+    const chatUrl = `${baseUrl}/iqr/chat/${businessId}?sent=${encodedProductName}_describe`;
+
+    console.log(`Generated chat URL: ${chatUrl}`);
+
+    // 3. Create default QR code with dynamic URL
     const { error: qrError } = await supabaseAdmin
       .from('qr_codes')
       .insert({
         product_id: productId,
-        image_url: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`https://textgpt.com/iqr/chat/${qrTextTag}`)}`,
-        data: `https://textgpt.com/iqr/chat/${qrTextTag}`
+        image_url: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(chatUrl)}`,
+        data: chatUrl
       });
 
     if (qrError) {

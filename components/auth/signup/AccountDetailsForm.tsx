@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { UserRegistrationData } from "@/types/auth";
 import { ArrowRight, Lock, Mail, User, AlertCircle } from "lucide-react";
 import { useFormCache } from "@/hooks/useFormCache";
-import { createClient } from '@/lib/supabase/client';
+import { createClient as _createClient } from '@/lib/supabase/client';
 
 import {
   Form,
@@ -36,7 +36,7 @@ interface AccountDetailsFormProps {
 }
 
 export const AccountDetailsForm = ({ onSubmit }: AccountDetailsFormProps) => {
-  const [formError, setFormError] = useState<string | null>(null);
+  const [_formError, _setFormError] = useState<string | null>(null);
   
   // Initialize with default empty values
   const defaultValues = {
@@ -83,10 +83,10 @@ export const AccountDetailsForm = ({ onSubmit }: AccountDetailsFormProps) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        {formError && (
+        {_formError && (
           <Alert variant="destructive" className="bg-red-500/10 border-red-500/30 text-red-500">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{formError}</AlertDescription>
+            <AlertDescription>{_formError}</AlertDescription>
           </Alert>
         )}
         

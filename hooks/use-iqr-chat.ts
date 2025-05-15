@@ -149,16 +149,15 @@ export function useIQRChat(businessId: string) {
     setInput(e.target.value);
   }, []);
 
-  // Handle form submission
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!input.trim()) return;
+  // Send a message programmatically
+  const sendMessage = useCallback(
+    async (messageText: string) => {
+      if (!messageText.trim()) return;
 
       // Add user message to the list
       const userMessage: IQRMessage = {
         role: 'user',
-        content: input,
+        content: messageText,
       };
       
       setMessages((prev) => [...prev, userMessage]);
@@ -210,7 +209,16 @@ export function useIQRChat(businessId: string) {
         setIsLoading(false);
       }
     },
-    [input, anonymousId, businessId]
+    [anonymousId, businessId]
+  );
+
+  // Handle form submission
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      await sendMessage(input);
+    },
+    [input, sendMessage]
   );
 
   // Clear chat history
@@ -242,10 +250,12 @@ export function useIQRChat(businessId: string) {
   return {
     messages,
     input,
+    setInput,
     products,
     business,
     handleInputChange,
     handleSubmit,
+    sendMessage,
     isLoading,
     error,
     clearChatHistory,

@@ -37,7 +37,7 @@ const urlValidator = (value: string) => {
     // Check if it's a valid URL with the protocol
     new URL(urlWithProtocol);
     return true;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 };

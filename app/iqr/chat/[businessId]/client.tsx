@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { IQRChat } from '@/components/iqr/IQRChat';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 interface ChatPageClientProps {
@@ -15,8 +15,10 @@ interface ChatPageClientProps {
 export function ChatPageClient({ params }: ChatPageClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [businessExists, setBusinessExists] = useState(false);
+  const [_businessExists, setBusinessExists] = useState(false);
+  const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const businessId = params.businessId;
 
   useEffect(() => {
@@ -49,8 +51,21 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
       }
     }
 
+    // Check for sent parameter in the URL
+    const sentParam = searchParams.get('sent');
+    if (sentParam) {
+      // Handle the pre-filled message format
+      // Format is expected to be 'ProductName_describe'
+      const parts = sentParam.split('_');
+      if (parts.length >= 2 && parts[1].toLowerCase() === 'describe') {
+        // Format message as "[Product] Describe"
+        const productName = decodeURIComponent(parts[0]);
+        setInitialMessage(`${productName} Describe`);
+      }
+    }
+
     checkBusinessExists();
-  }, [businessId, router]);
+  }, [businessId, router, searchParams]);
 
   if (loading) {
     return (
@@ -69,7 +84,7 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
 
   return (
     <main className="flex h-screen w-full bg-iqr-100 text-iqr-400 overflow-hidden">
-      <IQRChat businessId={businessId} />
+      <IQRChat businessId={businessId} initialMessage={initialMessage} />
     </main>
   );
 } 

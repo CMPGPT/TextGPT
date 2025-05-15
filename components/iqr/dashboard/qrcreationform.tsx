@@ -308,7 +308,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
                 accept=".pdf"
                 onChange={handleFileChange}
                 disabled={loading}
-                className="file:bg-iqr-200 file:text-white file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
+                className="file:bg-iqr-200 file:text-black file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
               />
             </div>
           </div>
@@ -361,7 +361,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         
         <Button
           type="submit"
-          className="bg-iqr-200 text-white hover:bg-iqr-200/80"
+          className="bg-iqr-200 text-black hover:bg-iqr-200/80"
           disabled={loading || apiStatus === 'checking'}
         >
           {loading ? (

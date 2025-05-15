@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { QrCode, ArrowUpDown, Edit, BarChartBig, Save, Trash, X, Download, RefreshCw } from 'lucide-react';
+import { QrCode, ArrowUpDown, Edit, BarChartBig, Save, Trash, X, Download, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Drawer,
@@ -341,8 +341,15 @@ export const ProductList = ({ businessId }: ProductListProps) => {
       setQRCodeLoading(true);
       setQRCodeError(null);
       
-      // In a real app, you would call an API to generate the QR code image
-      // and save it to storage. Here we'll just update the data.
+      // Determine the base URL based on environment
+      const isProduction = process.env.NODE_ENV === 'production';
+      const baseUrl = isProduction 
+        ? 'https://textg.pt' 
+        : window.location.origin;
+
+      // Generate the dynamic URL with product information and appropriate domain
+      const encodedProductName = encodeURIComponent(selectedProduct.name);
+      const dynamicUrl = `${baseUrl}/iqr/chat/${selectedProduct.business_id}?sent=${encodedProductName}_describe`;
       
       // Check if QR code exists
       if (selectedQRCode) {
@@ -350,20 +357,20 @@ export const ProductList = ({ businessId }: ProductListProps) => {
         const { error } = await supabase
           .from('qr_codes')
           .update({
-            data: qrCodeData
+            data: dynamicUrl,
+            image_url: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(dynamicUrl)}`
           })
           .eq('id', selectedQRCode.id);
           
         if (error) throw error;
       } else {
         // Create new QR code
-        // This would normally include generating the actual QR code image
         const { error } = await supabase
           .from('qr_codes')
           .insert({
             product_id: selectedProduct.id,
-            data: qrCodeData,
-            image_url: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrCodeData)
+            data: dynamicUrl,
+            image_url: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(dynamicUrl)}`
           });
           
         if (error) throw error;
@@ -373,7 +380,7 @@ export const ProductList = ({ businessId }: ProductListProps) => {
       const { error: updateError } = await supabase
         .from('products')
         .update({
-          qr_text_tag: qrCodeData
+          qr_text_tag: dynamicUrl
         })
         .eq('id', selectedProduct.id);
         
@@ -632,7 +639,7 @@ export const ProductList = ({ businessId }: ProductListProps) => {
                     accept=".pdf"
                     onChange={handleFileChange}
                     disabled={editLoading}
-                    className="file:bg-iqr-200 file:text-white file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
+                    className="file:bg-iqr-200 file:text-black file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
                   />
                 </div>
               </div>
@@ -641,7 +648,7 @@ export const ProductList = ({ businessId }: ProductListProps) => {
           <DrawerFooter>
             <Button 
               variant="default" 
-              className="bg-iqr-200 text-white hover:bg-iqr-200/80"
+              className="bg-iqr-200 text-black hover:bg-iqr-200/80"
               onClick={handleSaveProduct}
               disabled={editLoading}
             >
@@ -715,7 +722,7 @@ export const ProductList = ({ businessId }: ProductListProps) => {
           <DrawerFooter className="flex-col gap-2 sm:flex-row">
             <Button 
               variant="default" 
-              className="bg-iqr-200 text-white hover:bg-iqr-200/80 w-full sm:w-auto"
+              className="bg-iqr-200 text-black hover:bg-iqr-200/80 w-full sm:w-auto"
               onClick={handleGenerateQRCode}
               disabled={qrCodeLoading || !qrCodeData.trim()}
             >

@@ -9,9 +9,10 @@ import { Loader2, Send, ShoppingBag } from 'lucide-react';
 
 interface IQRChatProps {
   businessId: string;
+  initialMessage?: string | null;
 }
 
-export function IQRChat({ businessId }: IQRChatProps) {
+export function IQRChat({ businessId, initialMessage }: IQRChatProps) {
   const {
     messages,
     input,
@@ -20,9 +21,12 @@ export function IQRChat({ businessId }: IQRChatProps) {
     handleSubmit,
     isLoading,
     error,
+    setInput,
+    sendMessage
   } = useIQRChat(businessId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [initialMessageSent, setInitialMessageSent] = useState(false);
   
   // Validate business ID
   if (!businessId) {
@@ -33,6 +37,22 @@ export function IQRChat({ businessId }: IQRChatProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle initial message if provided
+  useEffect(() => {
+    if (initialMessage && !initialMessageSent && !isLoading) {
+      // Set the input field with the initial message
+      setInput(initialMessage);
+      setInitialMessageSent(true);
+      
+      // Auto-send the message after a short delay
+      const timer = setTimeout(() => {
+        sendMessage(initialMessage);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [initialMessage, initialMessageSent, isLoading, setInput, sendMessage]);
 
   return (
     <div className="flex flex-col h-screen w-full max-w-4xl mx-auto">
@@ -96,7 +116,7 @@ export function IQRChat({ businessId }: IQRChatProps) {
           <Button 
             type="submit" 
             disabled={isLoading || !input.trim()}
-            className="bg-iqr-200 hover:bg-iqr-200/80 text-iqr-50"
+            className="bg-iqr-200 text-black hover:bg-iqr-200/80"
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>

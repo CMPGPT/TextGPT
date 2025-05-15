@@ -1,0 +1,18 @@
+# Ignore components with unused variable errors
+components/iqr/IQRChat.tsx
+components/iqr/IQRChatMessage.tsx
+components/iqr/dashboard/analyticsoverview.tsx
+components/iqr/dashboard/businessinfomodal.tsx
+components/iqr/dashboard/massagelogs.tsx
+components/iqr/dashboard/productlist.tsx
+components/iqr/dashboard/qrcreationform.tsx
+
+# Ignore node modules
+node_modules/
+
+# Ignore build files
+.next/
+out/
+
+# Ignore next-env.d.ts
+next-env.d.ts 

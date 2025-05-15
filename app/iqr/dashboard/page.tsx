@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { StatusCard } from '@/components/iqr/dashboard/statuscard';
 import { Header } from '../layout/header';
@@ -26,7 +26,7 @@ type BusinessInfo = {
   iqr_number: string;
 };
 
-export default function IQRDashboard() {
+function IQRDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
@@ -37,7 +37,7 @@ export default function IQRDashboard() {
   const [userName, setUserName] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('create');
   const [searchFilter, setSearchFilter] = useState<string>('');
-  const [initialLoad, setInitialLoad] = useState(true);
+  const [_initialLoad, setInitialLoad] = useState(true);
 
   const handleTabChange = (value: string) => {
     // Don't show loading state when changing tabs
@@ -244,6 +244,28 @@ export default function IQRDashboard() {
         />
       </div>
     </DashboardCacheProvider>
+  );
+}
+
+export default function IQRDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 bg-[#14213D] min-h-screen">
+        <Header />
+        <div className="mt-6 space-y-8">
+          {/* Placeholder for status card */}
+          <div className="p-6 bg-card rounded-lg h-32"></div>
+          
+          {/* Placeholder for tabs */}
+          <div className="p-4 bg-card rounded-lg">
+            <div className="h-10 bg-secondary rounded-lg w-1/3 mb-4"></div>
+            <div className="h-64 bg-muted rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <IQRDashboardContent />
+    </Suspense>
   );
 }
 

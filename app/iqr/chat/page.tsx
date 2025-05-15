@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -15,7 +15,7 @@ interface Business {
   iqr_number?: string;
 }
 
-export default function IQRChatPage() {
+function IQRChatContent() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -189,5 +189,25 @@ export default function IQRChatPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function IQRChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto py-8 px-4">
+        <h1 className="text-2xl font-bold mb-6">Select a Business to Chat With</h1>
+        <div className="text-center py-8">
+          <div className="animate-pulse flex space-x-2 justify-center">
+            <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+            <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+            <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+          </div>
+          <p className="text-gray-600 mt-2">Loading...</p>
+        </div>
+      </div>
+    }>
+      <IQRChatContent />
+    </Suspense>
   );
 } 

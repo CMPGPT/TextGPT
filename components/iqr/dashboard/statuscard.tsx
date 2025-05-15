@@ -1,8 +1,10 @@
-import { Info } from 'lucide-react';
+import { Info, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface StatusCardProps {
   tollFreeNumber?: string;
@@ -21,6 +23,18 @@ export const StatusCard = ({
   businessName = "Business",
   onInfoClick = () => console.log('Business info clicked')
 }: StatusCardProps) => {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/iqr/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <Card className="bg-card text-card-foreground card-shadow border-0">
       <CardContent className="p-6">
@@ -61,13 +75,24 @@ export const StatusCard = ({
             </div>
           </div>
           
-          <Button
-            onClick={onInfoClick}
-            className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/80 shrink-0"
-          >
-            <Info className="mr-2 h-4 w-4" />
-            Business Info
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={onInfoClick}
+              className="bg-iqr-200 text-black hover:bg-iqr-200/80 shrink-0"
+            >
+              <Info className="mr-2 h-4 w-4" />
+              Business Info
+            </Button>
+            
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="border-iqr-200 text-iqr-200 hover:bg-iqr-200/10 shrink-0"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log Out
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

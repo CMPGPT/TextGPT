@@ -7,14 +7,14 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
 // Define types for search results
-interface ProductResult {
+interface _ProductResult {
     id: string;
     name: string;
     description: string | null;
     created_at: string;
 }
 
-interface MessageResult {
+interface _MessageResult {
     id: string;
     user_phone: string;
     created_at: string;

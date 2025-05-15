@@ -45,13 +45,13 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof forgotPasswordSchema>) => {
+  const onSubmit = async (_data: z.infer<typeof forgotPasswordSchema>) => {
     setIsLoading(true);
     setError(null);
 
     try {
       // Here you would call an action to trigger password reset
-      // const result = await resetPassword(data.email);
+      // const result = await resetPassword(_data.email);
       
       // For now, we'll just simulate a successful submission
       await new Promise(resolve => setTimeout(resolve, 1500));

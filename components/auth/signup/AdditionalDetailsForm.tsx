@@ -5,7 +5,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BusinessDetailsData } from "@/types/auth";
-import { ArrowRight, Briefcase, MessageSquare, Users, Loader2 } from "lucide-react";
+import { ArrowRight as _ArrowRight, Briefcase, MessageSquare, Users, Loader2 } from "lucide-react";
 import { useFormCache } from "@/hooks/useFormCache";
 
 import {

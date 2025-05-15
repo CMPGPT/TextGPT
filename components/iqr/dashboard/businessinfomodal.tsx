@@ -118,7 +118,7 @@ export const BusinessInfoModal = ({
     }
   };
 
-  const handleAdditionalDetailChange = (name: string, value: string) => {
+  const handleAdditionalDetailChange = (name: string, value: string | null) => {
     if (additionalDetails) {
       setAdditionalDetails({
         ...additionalDetails,
@@ -312,7 +312,7 @@ export const BusinessInfoModal = ({
                     <div className="space-y-2">
                       <Label htmlFor="product_type">Product Type</Label>
                       <Select 
-                        value={(additionalDetails?.product_type || 'none') as string}
+                        value={(additionalDetails?.product_type || 'none')}
                         onValueChange={(value) => handleAdditionalDetailChange('product_type', value === 'none' ? null : value)}
                       >
                         <SelectTrigger>
@@ -332,7 +332,7 @@ export const BusinessInfoModal = ({
                     <div className="space-y-2">
                       <Label htmlFor="business_size">Business Size</Label>
                       <Select 
-                        value={(additionalDetails?.business_size || 'none') as string}
+                        value={(additionalDetails?.business_size || 'none')}
                         onValueChange={(value) => handleAdditionalDetailChange('business_size', value === 'none' ? null : value)}
                       >
                         <SelectTrigger>

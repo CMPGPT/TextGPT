@@ -9,7 +9,7 @@ const openai = new OpenAI({
 });
 
 // Define message types based on OpenAI's API
-interface Message {
+interface _Message {
   role: 'system' | 'user' | 'assistant' | 'function';
   content: string;
   name?: string;
@@ -435,7 +435,7 @@ function buildSystemPrompt(
 }
 
 // Function handler implementations
-async function handleGetProductDetails(businessId: string, products: any[], productName: string, attribute?: string): Promise<any> {
+async function handleGetProductDetails(businessId: string, products: any[], productName: string, _attribute?: string): Promise<any> {
   console.log(`[API] Running function: handleGetProductDetails for "${productName}"`);
   
   // First try exact match (case-insensitive)
