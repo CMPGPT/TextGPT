@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, QrCode, Phone, Edit, LogIn } from "lucide-react";
+import { MessageSquare, QrCode, Phone, Edit } from "lucide-react";
 import FAQSection from "@/components/common/FAQSection";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from "next/navigation";
