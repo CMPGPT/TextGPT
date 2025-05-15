@@ -10,48 +10,54 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Set up CORS headers for all responses
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Max-Age': '86400',
+};
+
 // Add OPTIONS method handler for CORS preflight requests
 export async function OPTIONS() {
   console.log('OPTIONS request received for /api/iqr/scan');
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    headers: corsHeaders,
   });
 }
 
+// Add GET method to check API status (helpful for debugging)
+export async function GET() {
+  console.log('GET request received for /api/iqr/scan');
+  return NextResponse.json(
+    { status: 'online', message: 'API is running' },
+    { status: 200, headers: corsHeaders }
+  );
+}
+
 // Helper function to log errors and return a consistent response
-function handleApiError(error: any, message: string, headers: any) {
+function handleApiError(error: any, message: string) {
   const errorMsg = error instanceof Error ? error.message : String(error);
   const stackTrace = error instanceof Error ? error.stack : 'No stack trace available';
   console.error(`${message}: ${errorMsg}`);
   console.error(`Stack trace: ${stackTrace}`);
   return NextResponse.json(
     { error: message, details: errorMsg },
-    { status: 500, headers }
+    { status: 500, headers: corsHeaders }
   );
 }
 
 export async function POST(request: NextRequest) {
   console.log('POST request received for /api/iqr/scan');
   
-  // Add CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
-
   try {
     // Validate Supabase connection early
     if (!supabaseAdmin || typeof supabaseAdmin.from !== 'function') {
       console.error('Supabase client is not properly initialized');
       return NextResponse.json(
         { error: 'Database connection error', details: 'Supabase client initialization failed' },
-        { status: 500, headers }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
       console.warn('OPENAI_API_KEY is not properly configured');
       return NextResponse.json(
         { error: 'AI service configuration error', details: 'Missing OpenAI API key' },
-        { status: 500, headers }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -69,30 +75,39 @@ export async function POST(request: NextRequest) {
       formData = await request.formData();
       console.log('Form data successfully parsed');
     } catch (error) {
-      return handleApiError(error, 'Failed to parse form data', headers);
+      return handleApiError(error, 'Failed to parse form data');
     }
 
-    const file = formData.get('file') as File;
+    const file = formData.get('file') as File | null;
     const businessId = formData.get('businessId') as string;
     const productName = formData.get('productName') as string;
     const productDescription = formData.get('productDescription') as string;
     const systemPrompt = formData.get('systemPrompt') as string;
+    const skipPdfCheck = formData.get('skipPdfCheck') === 'true';
 
-    console.log(`Received upload request for business: ${businessId}, product: ${productName}`);
+    console.log(`Received upload request for business: ${businessId}, product: ${productName}, skipPdfCheck: ${skipPdfCheck}`);
 
-    if (!file || !businessId || !productName) {
+    if (!businessId || !productName) {
       return NextResponse.json(
-        { error: 'Missing required fields: file, businessId, productName' },
-        { status: 400, headers }
+        { error: 'Missing required fields: businessId, productName' },
+        { status: 400, headers: corsHeaders }
       );
     }
 
-    // Validate the file is a PDF
-    if (!file.type.includes('pdf')) {
+    // Check for file only if skipPdfCheck is false
+    if (!skipPdfCheck && !file) {
+      return NextResponse.json(
+        { error: 'Missing required file' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Validate the file is a PDF if it exists
+    if (file && !file.type.includes('pdf') && !skipPdfCheck) {
       console.log(`Invalid file type: ${file.type}`);
       return NextResponse.json(
         { error: 'Uploaded file must be a PDF' },
-        { status: 400, headers }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -101,59 +116,56 @@ export async function POST(request: NextRequest) {
     const qrTextTag = `iqr_${productName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-6)}`;
     console.log(`Generated product ID: ${productId}, QR tag: ${qrTextTag}`);
 
-    // 1. Upload file to Supabase Storage
-    let fileBuffer;
-    try {
-      fileBuffer = await file.arrayBuffer();
-      console.log(`Processing PDF ${file.name}, size: ${Math.round(fileBuffer.byteLength / 1024)} KB`);
-    } catch (error) {
-      return handleApiError(error, 'Failed to read file buffer', headers);
-    }
-    
-    // Use a simpler approach for storage buckets to reduce potential issues
-    const bucketName = 'iqr-pdfs';
-    const filePath = `pdfs/${businessId}/${productId}/${file.name}`;
-    
-    console.log(`Attempting to use storage bucket: ${bucketName}`);
-    
-    // Skip the complex bucket creation and selection logic
-    // Just try to upload to the predefined bucket directly
-    
+    // Variables for file processing
     let uploadError = null;
     let publicUrl = '';
     
-    try {
-      console.log(`Uploading file to ${bucketName}/${filePath}`);
-      const { data: _uploadData, error } = await supabaseAdmin.storage
-        .from(bucketName)
-        .upload(filePath, fileBuffer, {
-          contentType: file.type,
-          upsert: true,
-        });
-      
-      uploadError = error;
-      
-      if (!error) {
-        console.log('File upload successful, getting public URL');
-        const { data } = supabaseAdmin.storage
-          .from(bucketName)
-          .getPublicUrl(filePath);
-        
-        publicUrl = data.publicUrl;
-        console.log(`Generated public URL: ${publicUrl}`);
-      } else {
-        console.error(`Storage upload error: ${error.message}`);
+    // Only process file upload if a file was provided
+    if (file && !skipPdfCheck) {
+      // 1. Upload file to Supabase Storage
+      let fileBuffer;
+      try {
+        fileBuffer = await file.arrayBuffer();
+        console.log(`Processing PDF ${file.name}, size: ${Math.round(fileBuffer.byteLength / 1024)} KB`);
+      } catch (error) {
+        return handleApiError(error, 'Failed to read file buffer');
       }
-    } catch (error) {
-      console.error('Error during file upload:', error);
-      uploadError = error;
-    }
-
-    if (uploadError) {
-      console.log('Handling upload error gracefully');
-      // Continue with a placeholder URL if upload fails
-      publicUrl = `https://placeholder-for-failed-upload/${businessId}/${productId}/${encodeURIComponent(file.name)}`;
-      console.log(`Using placeholder URL: ${publicUrl}`);
+      
+      // Use a simpler approach for storage buckets to reduce potential issues
+      const bucketName = 'iqr-pdfs';
+      const filePath = `pdfs/${businessId}/${productId}/${file.name}`;
+      
+      console.log(`Attempting to use storage bucket: ${bucketName}`);
+      
+      try {
+        console.log(`Uploading file to ${bucketName}/${filePath}`);
+        const { data: _uploadData, error } = await supabaseAdmin.storage
+          .from(bucketName)
+          .upload(filePath, fileBuffer, {
+            contentType: file.type,
+            upsert: true,
+          });
+        
+        uploadError = error;
+        
+        if (!error) {
+          console.log('File upload successful, getting public URL');
+          const { data } = supabaseAdmin.storage
+            .from(bucketName)
+            .getPublicUrl(filePath);
+          
+          publicUrl = data.publicUrl;
+          console.log(`Generated public URL: ${publicUrl}`);
+        } else {
+          console.error(`Storage upload error: ${error.message}`);
+        }
+      } catch (error) {
+        console.error('Error during file upload:', error);
+        uploadError = error;
+      }
+    } else {
+      console.log('No file provided or PDF check skipped, continuing without file upload');
+      publicUrl = `https://placeholder-for-no-upload/${businessId}/${productId}/no-file`;
     }
 
     // 2. Create product entry regardless of upload success
@@ -167,11 +179,11 @@ export async function POST(request: NextRequest) {
           id: productId,
           business_id: businessId,
           name: productName,
-          description: productDescription,
-          system_prompt: systemPrompt,
-          pdf_url: publicUrl,
+          description: productDescription || null,
+          system_prompt: systemPrompt || null,
+          pdf_url: publicUrl || null,
           qr_text_tag: qrTextTag,
-          status: uploadError ? 'error' : 'processing'
+          status: !file || skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'processing')
         });
       
       productError = error;
@@ -189,7 +201,7 @@ export async function POST(request: NextRequest) {
     if (productError) {
       return NextResponse.json(
         { error: `Failed to create product: ${productError.message || 'Database error'}` },
-        { status: 500, headers }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -235,14 +247,17 @@ export async function POST(request: NextRequest) {
       productId,
       qrTextTag,
       qrCreated,
-      uploadSuccess: !uploadError,
-      message: uploadError 
-        ? 'Product created but file upload failed. PDF processing skipped.' 
-        : 'Product created successfully. PDF processing has begun.'
-    }, { headers });
+      uploadSuccess: !uploadError && !!file,
+      skipPdfCheck: skipPdfCheck,
+      message: !file || skipPdfCheck 
+        ? 'Product created without PDF.' 
+        : (uploadError 
+          ? 'Product created but file upload failed. PDF processing skipped.' 
+          : 'Product created successfully. PDF processing has begun.')
+    }, { headers: corsHeaders });
 
-    // Only process PDF if upload was successful
-    if (!uploadError) {
+    // Only process PDF if upload was successful and a file was provided
+    if (!uploadError && file && !skipPdfCheck) {
       // Process PDF asynchronously
       (async () => {
         console.log('Starting asynchronous PDF processing');
@@ -417,6 +432,6 @@ export async function POST(request: NextRequest) {
     return response;
     
   } catch (error) {
-    return handleApiError(error, 'An unexpected error occurred in scan API', headers);
+    return handleApiError(error, 'An unexpected error occurred in scan API');
   }
 } 
