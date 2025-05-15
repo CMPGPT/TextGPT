@@ -40,83 +40,91 @@ export function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between py-4 border-b text-black">
-        <div className="flex items-center space-x-2">
-          <h1 className="text-xl font-bold text-black">TextGPT Chat</h1>
-          {currentPersona && (
-            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-              {currentPersona.name}
-            </span>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleClearChat}
-          className={isConfirmingClear ? "bg-red-100 hover:bg-red-200 text-red-600" : ""}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          {isConfirmingClear ? "Confirm clear?" : "Clear chat"}
-        </Button>
-      </div>
-
-      {/* Message Container */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4 text-black flex flex-col">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center">
-            <h2 className="text-xl font-semibold mb-2 text-black">Welcome to TextGPT</h2>
-            <p className="max-w-md text-black">
-              Start a conversation with the AI assistant. You can ask questions,
-              request information, or just chat!
-            </p>
+    <div className="flex flex-col h-full">
+      <div className="w-full mx-auto max-w-2xl flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between py-4 border-b border-textgpt-100/30 bg-gradient-to-r from-textgpt-200 to-textgpt-100 text-white rounded-t-lg">
+          <div className="flex items-center space-x-2 px-4">
+            <h1 className="text-xl font-bold text-white">TextGPT Chat</h1>
             {currentPersona && (
-              <p className="mt-4 text-sm text-black">
-                Currently using: <span className="font-semibold">{currentPersona.name}</span>
-                {currentPersona.short_desc && (
-                  <span className="block mt-1">{currentPersona.short_desc}</span>
-                )}
-              </p>
+              <span className="bg-textgpt-300 text-textgpt-200 px-2 py-1 rounded-full text-xs font-medium">
+                {currentPersona.name}
+              </span>
             )}
-            <p className="mt-6 text-xs text-black">
-              Try asking about &quot;available personas&quot; or &quot;switch to [persona name]&quot;
-              to change the assistant&apos;s personality!
-            </p>
           </div>
-        ) : (
-          <div className="flex-1">
-            {messages.map((message: Message, index: number) => (
-              <ChatMessage key={index} message={message} />
-            ))}
-          </div>
-        )}
-        
-        {/* Show error message if any */}
-        {error && (
-          <div className="p-3 bg-red-100 text-red-800 rounded-lg mx-auto max-w-md">
-            {error}
-          </div>
-        )}
-        
-        {/* Invisible element to scroll to */}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Container */}
-      <div className="border-t py-4 mt-auto">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <Input
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Type your message..."
-            disabled={isLoading}
-            className="flex-1 text-black"
-          />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearChat}
+            className={isConfirmingClear 
+              ? "bg-red-100 hover:bg-red-200 text-red-600 mr-4" 
+              : "text-white hover:bg-textgpt-100/20 mr-4"}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isConfirmingClear ? "Confirm clear?" : "Clear chat"}
           </Button>
-        </form>
+        </div>
+
+        {/* Message Container */}
+        <div className="flex-1 overflow-y-auto py-4 space-y-4 bg-gradient-to-b from-textgpt-50/10 to-white">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center p-6">
+              <h2 className="text-xl font-semibold mb-2 text-textgpt-200">Welcome to TextGPT</h2>
+              <p className="max-w-md text-textgpt-200">
+                Start a conversation with the AI assistant. You can ask questions,
+                request information, or just chat!
+              </p>
+              {currentPersona && (
+                <p className="mt-4 text-sm text-textgpt-200">
+                  Currently using: <span className="font-semibold text-textgpt-100">{currentPersona.name}</span>
+                  {currentPersona.short_desc && (
+                    <span className="block mt-1">{currentPersona.short_desc}</span>
+                  )}
+                </p>
+              )}
+              <p className="mt-6 text-xs text-textgpt-200">
+                Try asking about &quot;available personas&quot; or &quot;switch to [persona name]&quot;
+                to change the assistant&apos;s personality!
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 px-2">
+              {messages.map((message: Message, index: number) => (
+                <ChatMessage key={index} message={message} />
+              ))}
+            </div>
+          )}
+          
+          {/* Show error message if any */}
+          {error && (
+            <div className="p-3 bg-red-100 text-red-800 rounded-lg mx-auto max-w-md">
+              {error}
+            </div>
+          )}
+          
+          {/* Invisible element to scroll to */}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Container */}
+        <div className="border-t border-textgpt-100/30 py-4 pb-6 mt-auto bg-textgpt-200 rounded-b-lg">
+          <form onSubmit={handleSubmit} className="flex space-x-2 px-4">
+            <Input
+              value={input}
+              onChange={handleInputChange}
+              placeholder="Type your message..."
+              disabled={isLoading}
+              className="flex-1 bg-white/90 text-textgpt-200 placeholder:text-textgpt-200/70 focus:ring-textgpt-300 border-textgpt-100/30 focus:border-textgpt-300 chat-input"
+            />
+            <Button 
+              type="submit" 
+              disabled={isLoading || !input.trim()}
+              className="bg-textgpt-300 hover:bg-textgpt-400 text-textgpt-200"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );

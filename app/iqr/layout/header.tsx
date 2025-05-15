@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { Search, X, MessageSquare } from 'lucide-react';
+import { Search, X, MessageSquare, LogIn, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -31,8 +31,31 @@ export const Header = () => {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [showResults, setShowResults] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [user, setUser] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
     const supabase = createClientComponentClient();
+    
+    // Check if user is authenticated
+    useEffect(() => {
+        async function checkUser() {
+            setLoading(true);
+            const { data: { session } } = await supabase.auth.getSession();
+            setUser(session?.user || null);
+            setLoading(false);
+        }
+        
+        checkUser();
+        
+        // Set up listener for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user || null);
+        });
+        
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [supabase.auth]);
 
     // Helper function to truncate text
     const truncateText = (text: string, maxLength: number = 60): string => {
@@ -166,8 +189,9 @@ export const Header = () => {
                 <h1 className="text-xl font-semibold text-iqr-400">IQR Dashboard</h1>
             </div>
 
-            <div className="flex items-center space-x-4">
-                <div id="search-container" className="relative max-w-xs w-full">
+            <div className="flex items-center space-x-2 md:space-x-4">
+                {/* Search container - hide on mobile */}
+                <div id="search-container" className="relative hidden md:block max-w-xs w-full">
                     <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-iqr-300/50" />
                     
                     <Input
@@ -220,11 +244,22 @@ export const Header = () => {
                 </div>
                 
                 <Link href="/iqr/chat">
-                    <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90">
-                        <MessageSquare size={18} className="mr-2" />
-                        Chat
+                    <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-2 md:px-4">
+                        <MessageSquare size={18} className="mr-0 md:mr-2" />
+                        <span className="hidden md:inline">Chat</span>
                     </Button>
                 </Link>
+                
+                {loading ? null : user ? (
+                    <></>
+                ) : (
+                    <Link href="/iqr/login">
+                        <Button variant="outline" className="border-iqr-200 text-iqr-300 hover:text-iqr-200 px-2 md:px-4">
+                            <LogIn size={18} className="mr-0 md:mr-2" />
+                            <span className="hidden md:inline">Sign In</span>
+                        </Button>
+                    </Link>
+                )}
             </div>
         </header>
     );

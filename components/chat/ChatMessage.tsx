@@ -25,21 +25,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const content = message.content;
 
   return (
-    <div className={cn("flex my-3", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex my-4", isUser ? "justify-end" : "justify-start")}>
       <div className={cn("flex max-w-[85%]", isUser ? "flex-row-reverse" : "flex-row")}>
         <Avatar className={cn("h-8 w-8 mt-1", isUser ? "ml-2" : "mr-2")}>
           <div className={cn("h-full w-full flex items-center justify-center rounded-full text-white", 
-            isUser ? "bg-blue-500" : "bg-green-500")}>
+            isUser ? "bg-textgpt-100" : "bg-textgpt-300")}>
             {isUser ? 'U' : 'A'}
           </div>
         </Avatar>
         
         <div className={cn("p-3 shadow-sm rounded-xl", 
-          isUser ? "bg-blue-50 border-blue-100" : "bg-white")}>
+          isUser 
+            ? "bg-textgpt-100 text-white border border-textgpt-100/30" 
+            : "bg-white border border-textgpt-50/30")}>
           {isUser ? (
-            <div className="whitespace-pre-wrap text-black">{content}</div>
+            <div className="whitespace-pre-wrap">{content}</div>
           ) : (
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap text-black">
+            <div className="prose prose-sm max-w-none whitespace-pre-wrap">
               <ReactMarkdown>{content}</ReactMarkdown>
             </div>
           )}

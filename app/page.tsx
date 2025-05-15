@@ -77,6 +77,7 @@ export default function TextGptLanding() {
           <a href="#services" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Services</a>
           <a href="#about" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">About</a>
           <a href="#contact" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Contact</a>
+          <Link href="/chat" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Chat</Link>
           <Link href="/terms" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Terms</Link>
           <Link href="/privacy" className="text-white/80 hover:text-white transition-all duration-300 ease-in-out hover:scale-105 text-xl">Privacy</Link>
           <Link href="/coming-soon">
@@ -94,6 +95,7 @@ export default function TextGptLanding() {
             <a href="#services" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Services</a>
             <a href="#about" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>About</a>
             <a href="#contact" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Contact</a>
+            <Link href="/chat" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Chat</Link>
             <Link href="/terms" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Terms</Link>
             <Link href="/privacy" className="text-white/80 hover:text-white py-2 transition-all duration-300 ease-in-out text-xl" onClick={toggleMenu}>Privacy</Link>
             <Link href="/coming-soon" onClick={toggleMenu}>
@@ -124,11 +126,11 @@ export default function TextGptLanding() {
                   Explore Services
                 </Button>
               </a>
-              <Link href="/auth/login">
+              <a href="#about">
                 <Button variant="outline" className="border-textgpt-300 text-white bg-transparent hover:bg-textgpt-300/10 px-8 py-6 w-full sm:w-auto">
                   Learn More
                 </Button>
-              </Link>
+              </a>
             </div>
           </div>
           <div className="hidden lg:block relative">

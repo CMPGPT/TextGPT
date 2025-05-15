@@ -85,19 +85,31 @@
 
 /* Custom styles for markdown content */
 .prose * {
-  @apply text-black;
+  @apply text-textgpt-200;
 }
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-  @apply text-black font-semibold;
+  @apply text-textgpt-200 font-semibold;
 }
 .prose p, .prose ul, .prose ol, .prose li, .prose blockquote {
-  @apply text-black;
+  @apply text-textgpt-200;
 }
 .prose a {
-  @apply text-blue-600 hover:text-blue-800;
+  @apply text-textgpt-100 hover:text-textgpt-100/80 underline;
 }
 .prose code, .prose pre {
-  @apply text-black bg-gray-100;
+  @apply text-textgpt-200 bg-gray-100 rounded;
+}
+.prose code {
+  @apply px-1.5 py-0.5 text-sm;
+}
+.prose pre {
+  @apply p-3 my-3 overflow-auto;
+}
+.prose blockquote {
+  @apply border-l-4 border-textgpt-300 pl-4 italic;
+}
+.prose strong {
+  @apply font-semibold text-textgpt-200;
 }
 
 /* Custom animations for typewriter effect */
@@ -132,5 +144,10 @@
 
 @media (max-width: 800px) {
   .max-w-7xl { max-width: 95vw !important; }
+}
+
+/* Chat input focus styles */
+.chat-input:focus {
+  @apply ring-2 ring-textgpt-300 border-textgpt-300;
 }
 

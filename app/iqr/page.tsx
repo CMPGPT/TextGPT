@@ -1,15 +1,44 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, QrCode, Phone, Edit } from "lucide-react";
+import { MessageSquare, QrCode, Phone, Edit, LogIn } from "lucide-react";
 import FAQSection from "@/components/common/FAQSection";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from "next/navigation";
 
 const messageIcon = "/icons/message-icon.png";
 
 export default function IQRLanding() {
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  
+  // Check if user is already authenticated, redirect to dashboard if yes
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        router.replace('/iqr/dashboard');
+      } else {
+        setIsLoading(false);
+      }
+    }
+    
+    checkUser();
+  }, [router, supabase.auth]);
+  
+  // If loading, don't render anything yet
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-iqr-100 to-black flex items-center justify-center">
+        <div className="animate-pulse text-iqr-200 text-xl">Loading...</div>
+      </div>
+    );
+  }
+  
   // FAQ data for IQR page
   const iqrFaqs = [
     {
@@ -33,19 +62,24 @@ export default function IQRLanding() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-iqr-100 to-black text-iqr-400 flex flex-col">
       {/* Navigation */}
-      <nav className="py-6 px-6 md:px-10 flex justify-between items-center z-10">
+      <nav className="py-6 px-4 md:px-10 flex justify-between items-center z-10">
         <div className="flex items-center">
-          <QrCode size={30} className="text-iqr-200 mr-2" />
-          <span className="text-2xl font-bold text-white">IQR.codes</span>
+          <QrCode size={24} className="text-iqr-200 mr-2" />
+          <span className="text-xl md:text-2xl font-bold text-white">IQR.codes</span>
         </div>
-        <div className="space-x-4">
-          <Link href="/">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <Link href="/" className="hidden md:block">
             <Button variant="ghost" className="text-iqr-300 hover:text-white">Home</Button>
           </Link>
           <Link href="/iqr/chat">
-            <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90">
-              <MessageSquare size={18} className="mr-2" />
-              Chat
+            <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-2 md:px-4 py-1 md:py-2 h-auto">
+              <MessageSquare size={18} className="mr-0 md:mr-2" />
+              <span className="hidden md:inline">Chat</span>
+            </Button>
+          </Link>
+          <Link href="/iqr/login">
+            <Button variant="outline" className="border-iqr-200 text-iqr-300 hover:text-iqr-200 px-2 md:px-4 py-1 md:py-2 h-auto">
+              <span className="hidden md:inline">Sign In</span>
             </Button>
           </Link>
         </div>
@@ -64,18 +98,20 @@ export default function IQRLanding() {
               No app downloads required. Just scan, text, and connect.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/coming-soon">
+              <Link href="/iqr/signup">
                 <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-8 py-6 w-full sm:w-auto">
                   Get Started
                 </Button>
               </Link>
-              <Button
-                variant="outline"
-                className="border-iqr-200 text-white hover:text-iqr-200 px-8 py-6 w-full sm:w-auto"
-                style={{ backgroundColor: '#0E1629' }}
-              >
-                Learn More
-              </Button>
+              <Link href="/iqr/login">
+                <Button
+                  variant="outline"
+                  className="border-iqr-200 text-white hover:text-iqr-200 px-8 py-6 w-full sm:w-auto flex items-center justify-center"
+                  style={{ backgroundColor: '#0E1629' }}
+                >
+                  Sign In
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="md:w-1/2 mt-10 md:mt-0 relative animate-[fade-in_1s_ease-in-out] w-full flex justify-center">
@@ -170,7 +206,7 @@ export default function IQRLanding() {
           <p className="text-xl text-iqr-300 mb-10 mx-auto max-w-2xl">
             Join hundreds of businesses already using IQR.codes to connect with customers in a seamless, app-free experience.
           </p>
-          <Link href="/iqr/dashboard">
+          <Link href="/iqr/signup">
             <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-8 py-6 text-lg">
               Start Creating Your IQR Codes
             </Button>
