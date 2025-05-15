@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { Bell, Search, Settings, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
@@ -166,7 +165,7 @@ export const Header = () => {
             </div>
 
             <div className="flex items-center space-x-2">
-                <div id="search-container" className="relative max-w-xs hidden md:block">
+                <div id="search-container" className="relative max-w-xs w-full">
                     <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-iqr-300/50" />
                     
                     <Input
@@ -217,14 +216,6 @@ export const Header = () => {
                         </div>
                     )}
                 </div>
-
-                <Button variant="ghost" size="icon" className="text-iqr-300 hover:text-iqr-400 hover:bg-iqr-100/50">
-                    <Bell className="h-5 w-5" />
-                </Button>
-
-                <Button variant="ghost" size="icon" className="text-iqr-300 hover:text-iqr-400 hover:bg-iqr-100/50">
-                    <Settings className="h-5 w-5" />
-                </Button>
             </div>
         </header>
     );

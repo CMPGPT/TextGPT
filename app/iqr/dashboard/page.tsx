@@ -205,10 +205,10 @@ export default function IQRDashboard() {
           
           <Tabs defaultValue={activeTab} value={activeTab} onValueChange={handleTabChange} className="space-y-6">
             <TabsList className="bg-secondary">
-              <TabsTrigger value="create">Create Product</TabsTrigger>
-              <TabsTrigger value="products">Products & QR Codes</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-              <TabsTrigger value="messages">Message Logs</TabsTrigger>
+              <TabsTrigger value="create" className="md:flex-1 text-xs sm:text-sm relative after:hidden sm:after:hidden">Create Product</TabsTrigger>
+              <TabsTrigger value="products" className="md:flex-1 text-xs sm:text-sm relative after:content-[''] after:absolute after:left-0 after:top-1/4 after:h-1/2 after:w-px after:bg-gray-400/30 sm:after:hidden">Products & QR Codes</TabsTrigger>
+              <TabsTrigger value="analytics" className="md:flex-1 text-xs sm:text-sm relative after:content-[''] after:absolute after:left-0 after:top-1/4 after:h-1/2 after:w-px after:bg-gray-400/30 sm:after:hidden">Analytics</TabsTrigger>
+              <TabsTrigger value="messages" className="md:flex-1 text-xs sm:text-sm relative after:content-[''] after:absolute after:left-0 after:top-1/4 after:h-1/2 after:w-px after:bg-gray-400/30 sm:after:hidden">Message Logs</TabsTrigger>
             </TabsList>
             
             {/* Use TabsContent with forceMount to preserve component state between tab switches */}
