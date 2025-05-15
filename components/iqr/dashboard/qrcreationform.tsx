@@ -345,16 +345,23 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         
         {loading && (
           <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm flex justify-between text-muted-foreground mb-1">
               <span>
                 {uploadProgress < 70 
-                  ? 'Processing...' 
+                  ? 'Uploading...' 
                   : uploadProgress < 80 
-                    ? 'Processing...' 
+                    ? 'Processing PDF...' 
                     : uploadProgress < 100 
-                      ? 'Processing...' 
+                      ? 'Generating QR code...' 
                       : 'Finalizing...'}
               </span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-iqr-100/30 rounded-full h-2.5">
+              <div 
+                className="bg-iqr-200 h-2.5 rounded-full transition-all duration-300 ease-in-out"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
             </div>
           </div>
         )}
@@ -366,10 +373,12 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         >
           {loading ? (
             <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Processing...
             </>
           ) : apiStatus === 'checking' ? (
             <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Checking API...
             </>
           ) : (

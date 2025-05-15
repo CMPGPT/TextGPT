@@ -41,7 +41,7 @@ export function IQRChatMessage({ message }: IQRChatMessageProps) {
         </p>
         
         {message.metadata?.function_call_used && (
-          <div className="mt-2 flex items-center text-xs text-iqr-50/80">
+          <div className="mt-2 flex items-center text-xs text-iqr-50/90">
             <Info className="h-3 w-3 mr-1" />
             <span>Product information retrieved from our database</span>
           </div>
@@ -59,14 +59,19 @@ export function IQRChatMessage({ message }: IQRChatMessageProps) {
     >
       <div
         className={cn(
-          "rounded-lg px-4 py-2 max-w-[85%] md:max-w-[75%] transition-opacity duration-300",
+          "rounded-lg px-4 py-3 max-w-[85%] md:max-w-[75%] transition-opacity duration-300 shadow-lg",
           isUser
-            ? "bg-iqr-200 text-iqr-50"
+            ? "bg-iqr-200 text-black font-medium" // Improved contrast for user messages
             : containsProductInfo 
-              ? "bg-iqr-300 text-iqr-50 border border-iqr-50/20" 
-              : "bg-iqr-300/90 text-iqr-50",
+              ? "bg-iqr-300/80 text-white backdrop-blur-sm border border-iqr-50/20" // Semi-transparent with blur for product info
+              : "bg-iqr-300/70 text-white backdrop-blur-sm", // Semi-transparent with blur for regular assistant messages
           isVisible ? "opacity-100" : "opacity-0"
         )}
+        style={{
+          boxShadow: isUser 
+            ? '0 4px 12px rgba(102, 240, 212, 0.15)' 
+            : '0 4px 12px rgba(29, 52, 80, 0.2)'
+        }}
       >
         {renderMessageContent()}
       </div>

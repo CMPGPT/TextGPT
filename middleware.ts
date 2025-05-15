@@ -42,8 +42,7 @@ export async function middleware(request: NextRequest) {
     // Handle IQR protected routes
     if (pathname.startsWith('/iqr/dashboard') || 
         pathname.startsWith('/iqr/qrcodes') || 
-        pathname.startsWith('/iqr/upload') ||
-        pathname.startsWith('/iqr/chat')) {
+        pathname.startsWith('/iqr/upload')) {
       // If not authenticated, redirect to login
       if (!session) {
         log(`Redirecting unauthenticated user from ${pathname} to login`);

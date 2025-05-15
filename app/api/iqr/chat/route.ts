@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     
     // Step 2: Get all products for the business
     console.log(`[API] Fetching products for business ${business_id}`);
-    const { data: productsData, error: productsError } = await supabase
+    const { data: fetchedProducts, error: productsError } = await supabase
       .from('products')
       .select('id, name, description, system_prompt')
       .eq('business_id', business_id)
@@ -142,14 +142,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!productsData || productsData.length === 0) {
-      console.log(`[API] No products found for business ${business_id}`);
-      return NextResponse.json(
-        { error: 'No products found for this business' },
-        { status: 404 }
-      );
-    }
-
+    // Use empty array if no products found
+    const productsData = fetchedProducts || [];
+    
     console.log(`[API] Retrieved ${productsData.length} products for business ${business_id}`);
     
     // Step 3: Get the user query from the last message
@@ -415,7 +410,11 @@ function buildSystemPrompt(
   }
   
   // Add product information
-  systemPrompt += `\n\nThis business offers ${products.length} product(s). You can access detailed information about any product using the get_product_details function or list all products using the list_all_products function.`;
+  if (products.length === 0) {
+    systemPrompt += `\n\nThis business currently has no products listed. If the user asks about products, kindly inform them that there are no products listed yet from this business.`;
+  } else {
+    systemPrompt += `\n\nThis business offers ${products.length} product(s). You can access detailed information about any product using the get_product_details function or list all products using the list_all_products function.`;
+  }
   
   // Add information from PDF chunks
   if (relevantChunks.length > 0) {
@@ -437,6 +436,13 @@ function buildSystemPrompt(
 // Function handler implementations
 async function handleGetProductDetails(businessId: string, products: any[], productName: string, _attribute?: string): Promise<any> {
   console.log(`[API] Running function: handleGetProductDetails for "${productName}"`);
+  
+  if (products.length === 0) {
+    return {
+      error: "There are no products listed yet from this business.",
+      available_products: []
+    };
+  }
   
   // First try exact match (case-insensitive)
   let matchedProduct = products.find(p => 
@@ -474,6 +480,13 @@ async function handleGetProductDetails(businessId: string, products: any[], prod
 async function handleListAllProducts(products: any[]): Promise<any> {
   console.log(`[API] Running function: handleListAllProducts`);
   
+  if (products.length === 0) {
+    return {
+      message: "There are no products listed yet from this business.",
+      products: []
+    };
+  }
+  
   return {
     products: products.map(p => ({
       name: p.name,
@@ -498,6 +511,13 @@ async function handleRelatedProductsSearch(businessId: string, searchTerm: strin
   if (error) {
     console.error('[API] Error searching for related products:', error);
     return { error: 'Failed to search for related products' };
+  }
+  
+  if (!data || data.length === 0) {
+    return { 
+      message: "There are no products listed yet from this business that match your search.",
+      matching_products: []
+    };
   }
   
   return {

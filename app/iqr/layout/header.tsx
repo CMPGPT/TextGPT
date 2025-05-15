@@ -1,10 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 // Define types for search results
 interface _ProductResult {
@@ -164,7 +166,7 @@ export const Header = () => {
                 <h1 className="text-xl font-semibold text-iqr-400">IQR Dashboard</h1>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
                 <div id="search-container" className="relative max-w-xs w-full">
                     <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-iqr-300/50" />
                     
@@ -216,6 +218,13 @@ export const Header = () => {
                         </div>
                     )}
                 </div>
+                
+                <Link href="/iqr/chat">
+                    <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90">
+                        <MessageSquare size={18} className="mr-2" />
+                        Chat
+                    </Button>
+                </Link>
             </div>
         </header>
     );
