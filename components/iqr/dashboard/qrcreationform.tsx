@@ -88,6 +88,65 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
     await submitForm(true);
   };
 
+  // Function to create product without PDF using direct API endpoint
+  const createProductWithoutPdf = async () => {
+    try {
+      setUploadProgress(30);
+      
+      const baseUrl = typeof window !== 'undefined' 
+        ? `${window.location.protocol}//${window.location.host}`
+        : 'http://localhost:3000';
+      
+      const apiUrl = `${baseUrl}/api/iqr/create-product-without-pdf`;
+      log(`Making request to no-PDF endpoint: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessId,
+          productName,
+          productDescription: productDescription || '',
+          systemPrompt: systemPrompt || '',
+        }),
+      });
+      
+      setUploadProgress(60);
+      
+      if (!response.ok) {
+        const errorStatus = response.status;
+        let errorData = null;
+        
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // Unable to parse JSON response
+        }
+        
+        const errorMessage = errorData?.error || `Failed to create product. Status: ${errorStatus}`;
+        
+        setDetailedError({
+          status: errorStatus,
+          statusText: response.statusText,
+          data: errorData
+        });
+        
+        throw new Error(errorMessage);
+      }
+      
+      const result = await response.json();
+      log('API response received for no-PDF creation', result);
+      setUploadProgress(100);
+      
+      return result;
+    } catch (error: any) {
+      logError('createWithoutPdf', error);
+      throw error;
+    }
+  };
+
   const submitForm = async (skipPdf = false) => {
     setError(null);
     setDetailedError(null);
@@ -113,92 +172,121 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         throw new Error('PDF file is required or choose to create without PDF');
       }
 
-      // Create FormData for API request
-      const formData = new FormData();
-      if (selectedFile && !skipPdf) {
-        formData.append('file', selectedFile);
-      }
-      formData.append('businessId', businessId);
-      formData.append('productName', productName);
-      formData.append('productDescription', productDescription || '');
-      formData.append('systemPrompt', systemPrompt || '');
-      formData.append('skipPdfCheck', skipPdf ? 'true' : 'false');
+      let result;
+      
+      // Use different pathway based on whether we're skipping PDF
+      if (skipPdf) {
+        // Use dedicated API for creating without PDF
+        result = await createProductWithoutPdf();
+      } else {
+        // Original flow for PDF uploads
+        // Create FormData for API request
+        const formData = new FormData();
+        formData.append('file', selectedFile!);
+        formData.append('businessId', businessId);
+        formData.append('productName', productName);
+        formData.append('productDescription', productDescription || '');
+        formData.append('systemPrompt', systemPrompt || '');
+        formData.append('skipPdfCheck', 'false');
 
-      // Use the fetch API with better error handling
-      try {
-        log('Sending API request to /api/iqr/scan');
-        
-        // Use regular fetch instead of XMLHttpRequest to avoid CORS issues
-        const baseUrl = typeof window !== 'undefined' 
-          ? `${window.location.protocol}//${window.location.host}`
-          : 'http://localhost:3000';
-        
-        const apiUrl = `${baseUrl}/api/iqr/scan`;
-        log(`Making request to absolute URL: ${apiUrl}`);
-        
-        // If skipping PDF, simulate progress
-        if (skipPdf) {
-          setUploadProgress(50);
-        }
-        
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorStatus = response.status;
-          let errorData = null;
+        // Use the fetch API with better error handling
+        try {
+          log('Sending API request to /api/iqr/scan');
           
-          try {
-            errorData = await response.json();
-          } catch (e) {
-            // Unable to parse JSON response
-          }
+          // Use regular fetch instead of XMLHttpRequest to avoid CORS issues
+          const baseUrl = typeof window !== 'undefined' 
+            ? `${window.location.protocol}//${window.location.host}`
+            : 'http://localhost:3000';
           
-          const errorMessage = errorData?.error || `Upload failed with status ${errorStatus}`;
+          const apiUrl = `${baseUrl}/api/iqr/scan`;
+          log(`Making request to absolute URL: ${apiUrl}`);
           
-          setDetailedError({
-            status: errorStatus,
-            statusText: response.statusText,
-            data: errorData
+          // Track upload progress 
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', apiUrl);
+          
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percentage = Math.round((event.loaded / event.total) * 70);
+              setUploadProgress(percentage);
+            }
+          };
+          
+          const uploadPromise = new Promise<any>((resolve, reject) => {
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const response = JSON.parse(xhr.responseText);
+                  resolve(response);
+                } catch (e) {
+                  reject(new Error('Invalid JSON response'));
+                }
+              } else {
+                let errorData = null;
+                try {
+                  errorData = JSON.parse(xhr.responseText);
+                } catch (e) {}
+                
+                setDetailedError({
+                  status: xhr.status,
+                  statusText: xhr.statusText,
+                  data: errorData
+                });
+                
+                // If we get a 405 error, show the fallback dialog
+                if (xhr.status === 405 && !attemptedWithoutPdf) {
+                  setShowFallbackDialog(true);
+                  setLoading(false);
+                  reject(new Error('Upload failed - would you like to create without PDF?'));
+                  return;
+                }
+                
+                reject(new Error(`Upload failed with status ${xhr.status}`));
+              }
+            };
+            
+            xhr.onerror = () => {
+              setDetailedError({
+                status: 0,
+                statusText: 'Network Error',
+                data: null
+              });
+              
+              if (!attemptedWithoutPdf) {
+                setShowFallbackDialog(true);
+                setLoading(false);
+              }
+              
+              reject(new Error('Network error occurred during upload'));
+            };
           });
           
-          // Only show fallback dialog for 405 errors and only if we haven't already tried without PDF
-          if (errorStatus === 405 && !skipPdf && !attemptedWithoutPdf) {
-            setShowFallbackDialog(true);
-            setLoading(false);
-            return; // Exit early to prevent throwing the error
-          }
+          xhr.send(formData);
+          result = await uploadPromise;
           
-          throw new Error(errorMessage);
+          log('API response received', result);
+          setUploadProgress(80);
+        } catch (apiError: any) {
+          logError('apiCall', apiError);
+          throw apiError;
         }
-        
-        const result = await response.json();
-        log('API response received', result);
-        
-        // Simulate the rest of the process
-        setUploadProgress(80); // 80% after server processing starts
-        
-        // Poll for product status or just simulate completion after a delay
-        setTimeout(() => {
-          setUploadProgress(100);
-          setSuccess(`Product "${productName}" created successfully ${result.skipPdfCheck ? 'without PDF' : ''} with QR code for tag: ${result.qrTextTag}`);
-          
-          // Reset form
-          setProductName('');
-          setProductDescription('');
-          setSystemPrompt('');
-          setSelectedFile(null);
-          setLoading(false);
-          setRetryCount(0); // Reset retry count on success
-          setSkipPdfUpload(false); // Reset skip PDF flag
-          setAttemptedWithoutPdf(false); // Reset attempted flag
-        }, 2000);
-      } catch (apiError: any) {
-        logError('apiCall', apiError);
-        throw apiError;
       }
+      
+      // Display success message
+      setTimeout(() => {
+        setUploadProgress(100);
+        setSuccess(`Product "${productName}" created successfully ${skipPdf ? 'without PDF' : ''} with QR code for tag: ${result.qrTextTag}`);
+        
+        // Reset form
+        setProductName('');
+        setProductDescription('');
+        setSystemPrompt('');
+        setSelectedFile(null);
+        setLoading(false);
+        setRetryCount(0); // Reset retry count on success
+        setSkipPdfUpload(false); // Reset skip PDF flag
+        setAttemptedWithoutPdf(false); // Reset attempted flag
+      }, 1000);
 
     } catch (err: any) {
       logError('formSubmission', err);
@@ -264,6 +352,12 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
                   <li>The API route might not be deployed correctly</li>
                   <li>There might be a network connectivity issue</li>
                 </ul>
+              </div>
+            )}
+            {(error.includes('failed with status 405') || (detailedError?.status === 405)) && (
+              <div className="text-xs mt-1">
+                <p>This error typically means there's an issue with uploading files.</p>
+                <p className="mt-1">Try checking the "Create without PDF document" option below and submit again.</p>
               </div>
             )}
             {retryCount > 0 && (
@@ -373,7 +467,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
             <div className="text-sm flex justify-between text-muted-foreground mb-1">
               <span>
                 {skipPdfUpload 
-                  ? (uploadProgress < 80 
+                  ? (uploadProgress < 60 
                       ? 'Creating product...' 
                       : 'Generating QR code...')
                   : (uploadProgress < 70 
