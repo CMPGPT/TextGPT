@@ -40,6 +40,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking'>('idle');
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
   const [skipPdfUpload, setSkipPdfUpload] = useState(false);
+  const [attemptedWithoutPdf, setAttemptedWithoutPdf] = useState(false);
 
   // Verify the API endpoint is available when component mounts but don't show loading
   useEffect(() => {
@@ -83,6 +84,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
   const handleSubmitWithoutPdf = async () => {
     setShowFallbackDialog(false);
     setSkipPdfUpload(true);
+    setAttemptedWithoutPdf(true);
     await submitForm(true);
   };
 
@@ -97,6 +99,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       productName, 
       fileSelected: !!selectedFile,
       skipPdf,
+      attemptedWithoutPdf,
       businessId,
       retryCount 
     });
@@ -125,89 +128,54 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       try {
         log('Sending API request to /api/iqr/scan');
         
-        // Set up a fetch with upload progress tracking via XMLHttpRequest
-        const xhr = new XMLHttpRequest();
-        
-        xhr.upload.addEventListener('progress', (event) => {
-          if (event.lengthComputable && !skipPdf) {
-            const percentage = Math.round((event.loaded / event.total) * 70);
-            setUploadProgress(percentage); // 70% for upload
-          } else if (skipPdf) {
-            // If skipping PDF, simulate progress
-            setUploadProgress(50);
-          }
-        });
-
-        // Use a Promise to handle the XHR response
-        const uploadPromise = new Promise<any>((resolve, reject) => {
-          xhr.onload = () => {
-            log(`XHR response received with status: ${xhr.status}`);
-            
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const response = JSON.parse(xhr.responseText);
-                resolve(response);
-              } catch (error) {
-                const parseError = new Error('Invalid response format');
-                logError('responseFormat', error);
-                reject(parseError);
-              }
-            } else {
-              let errorMessage = `Upload failed with status ${xhr.status}`;
-              let responseData = null;
-              
-              try {
-                responseData = JSON.parse(xhr.responseText);
-                errorMessage = responseData.error || errorMessage;
-              } catch (parseError) {
-                logError('parseError', parseError);
-              }
-              
-              const uploadError = new Error(errorMessage);
-              logError('uploadError', { 
-                status: xhr.status, 
-                statusText: xhr.statusText,
-                responseData
-              });
-              setDetailedError({ 
-                status: xhr.status, 
-                statusText: xhr.statusText,
-                data: responseData
-              });
-              reject(uploadError);
-            }
-          };
-          
-          xhr.onerror = () => {
-            const networkError = new Error('Network error occurred');
-            logError('networkError', networkError);
-            reject(networkError);
-          };
-          
-          xhr.ontimeout = () => {
-            const timeoutError = new Error('Request timed out');
-            logError('timeoutError', timeoutError);
-            reject(timeoutError);
-          };
-        });
-
-        // Set a reasonable timeout (30 seconds)
-        xhr.timeout = 30000;
-        
-        // Get the base URL (either from environment or window.location)
+        // Use regular fetch instead of XMLHttpRequest to avoid CORS issues
         const baseUrl = typeof window !== 'undefined' 
           ? `${window.location.protocol}//${window.location.host}`
           : 'http://localhost:3000';
         
-        // Open and send the request with absolute URL
         const apiUrl = `${baseUrl}/api/iqr/scan`;
         log(`Making request to absolute URL: ${apiUrl}`);
-        xhr.open('POST', apiUrl, true);
-        xhr.send(formData);
-
-        // Wait for response
-        const response = await uploadPromise;
-        log('API response received', response);
+        
+        // If skipping PDF, simulate progress
+        if (skipPdf) {
+          setUploadProgress(50);
+        }
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          const errorStatus = response.status;
+          let errorData = null;
+          
+          try {
+            errorData = await response.json();
+          } catch (e) {
+            // Unable to parse JSON response
+          }
+          
+          const errorMessage = errorData?.error || `Upload failed with status ${errorStatus}`;
+          
+          setDetailedError({
+            status: errorStatus,
+            statusText: response.statusText,
+            data: errorData
+          });
+          
+          // Only show fallback dialog for 405 errors and only if we haven't already tried without PDF
+          if (errorStatus === 405 && !skipPdf && !attemptedWithoutPdf) {
+            setShowFallbackDialog(true);
+            setLoading(false);
+            return; // Exit early to prevent throwing the error
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        log('API response received', result);
         
         // Simulate the rest of the process
         setUploadProgress(80); // 80% after server processing starts
@@ -215,7 +183,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         // Poll for product status or just simulate completion after a delay
         setTimeout(() => {
           setUploadProgress(100);
-          setSuccess(`Product "${productName}" created successfully ${response.skipPdfCheck ? 'without PDF' : ''} with QR code for tag: ${response.qrTextTag}`);
+          setSuccess(`Product "${productName}" created successfully ${result.skipPdfCheck ? 'without PDF' : ''} with QR code for tag: ${result.qrTextTag}`);
           
           // Reset form
           setProductName('');
@@ -225,14 +193,10 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
           setLoading(false);
           setRetryCount(0); // Reset retry count on success
           setSkipPdfUpload(false); // Reset skip PDF flag
+          setAttemptedWithoutPdf(false); // Reset attempted flag
         }, 2000);
       } catch (apiError: any) {
         logError('apiCall', apiError);
-        // Handle 405 Method Not Allowed error specifically
-        if (apiError.message?.includes("405") || 
-            (detailedError && detailedError.status === 405)) {
-          setShowFallbackDialog(true);
-        }
         throw apiError;
       }
 
@@ -240,6 +204,12 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       logError('formSubmission', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setLoading(false);
+      
+      // If we're seeing an error even after trying without PDF, reset the attempted flag
+      // so user can try again if needed
+      if (skipPdf && attemptedWithoutPdf) {
+        setAttemptedWithoutPdf(false);
+      }
     }
   };
 
@@ -252,8 +222,16 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
     setRetryCount(prev => prev + 1);
     setError(null);
     setDetailedError(null);
+    setAttemptedWithoutPdf(false);
     log('Retrying submission', { retryCount: retryCount + 1 });
     handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+  };
+
+  const handleSkipPdfChange = (checked: boolean) => {
+    setSkipPdfUpload(checked);
+    if (checked) {
+      setSelectedFile(null);
+    }
   };
 
   return (
@@ -329,11 +307,9 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
           <div className="space-y-2">
             <Label htmlFor="fileUpload" className="flex items-center justify-between">
               <span>Product Documentation (PDF)</span>
-              {!skipPdfUpload && (
-                <div className="text-xs text-muted-foreground">
-                  {skipPdfUpload ? '(Optional)' : '(Required)'}
-                </div>
-              )}
+              <div className="text-xs text-muted-foreground">
+                {skipPdfUpload ? '(Optional)' : '(Required)'}
+              </div>
             </Label>
             <div className="flex items-center gap-2">
               <Input
@@ -350,12 +326,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
               <Checkbox 
                 id="skipPdf" 
                 checked={skipPdfUpload}
-                onCheckedChange={(checked) => {
-                  setSkipPdfUpload(checked === true);
-                  if (checked) {
-                    setSelectedFile(null);
-                  }
-                }}
+                onCheckedChange={(checked) => handleSkipPdfChange(checked === true)}
                 disabled={loading}
               />
               <label
