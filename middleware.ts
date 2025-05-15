@@ -15,6 +15,22 @@ export async function middleware(request: NextRequest) {
     
     log(`Processing request for: ${pathname}, Method: ${request.method}`);
     
+    // Special handling for OPTIONS requests to API routes
+    if (request.method === 'OPTIONS' && pathname.startsWith('/api/')) {
+      log(`Handling OPTIONS request for API route: ${pathname}`);
+      
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+    
     // Create a response object to modify
     const res = NextResponse.next();
     
