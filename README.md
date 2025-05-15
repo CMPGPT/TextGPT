@@ -13,6 +13,7 @@ TextGPT is a platform that offers two main services:
 - QR code generation and management
 - Chat interfaces for user interactions
 - SMS integration capabilities
+- Document extraction using Mistral AI
 
 ## Environment Setup (Important for Deployment)
 
@@ -29,7 +30,20 @@ OPENAI_MODEL=gpt-4o-mini
 NEXT_PUBLIC_SUPABASE_URL=https://zxagqatfzsfpqhaapusj.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+
+# Mistral AI Configuration
+MISTRAL_API_KEY=your_mistral_api_key_here
 ```
+
+## Document Processing
+
+TextGPT uses Mistral AI's document extraction API for processing PDF files. The system extracts text from PDF documents and stores it in Supabase for later retrieval during chat sessions.
+
+Key features of the document processing system:
+- OCR support for scanned document text extraction
+- Page-aware text chunking for better context retention
+- Robust error handling with automatic retries
+- Integration with OpenAI embeddings for semantic search
 
 ## Getting Started
 

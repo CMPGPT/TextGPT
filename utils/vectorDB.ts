@@ -90,16 +90,26 @@ class VectorDBClient {
       const threshold = options?.threshold || this.config.similarityThreshold;
       const count = options?.count || this.config.matchCount;
       
-      // Perform similarity search using the RPC function
-      const { data, error } = await supabaseAdmin.rpc('match_pdf_chunks', {
-        query_embedding: embedding,
-        match_threshold: threshold,
-        match_count: count,
-        p_product_id: productId || null
-      });
+      // Use the appropriate function based on whether a productId is provided
+      const functionName = productId ? 'match_pdf_chunks_by_product' : 'match_pdf_chunks_all';
+      
+      // Perform similarity search using the appropriate RPC function
+      const { data, error } = await supabaseAdmin.rpc(
+        functionName,
+        productId ? {
+          query_embedding: embedding,
+          match_threshold: threshold,
+          match_count: count,
+          p_product_id: productId
+        } : {
+          query_embedding: embedding,
+          match_threshold: threshold,
+          match_count: count
+        }
+      );
       
       if (error) {
-        console.error('Error searching for similar PDF chunks:', error);
+        console.error(`Error searching for similar PDF chunks using ${functionName}:`, error);
         return [];
       }
       

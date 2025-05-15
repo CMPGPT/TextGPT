@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
+import { processPdfToChunks } from '@/utils/mistralDocUtils';
+import { countTokens } from '@/utils/vectorDB';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -24,6 +26,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate the file is a PDF
+    if (!file.type.includes('pdf')) {
+      return NextResponse.json(
+        { error: 'Uploaded file must be a PDF' },
+        { status: 400 }
+      );
+    }
+
     // Generate unique IDs
     const productId = uuidv4();
     const qrTextTag = `iqr_${productName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-6)}`;
@@ -31,6 +41,7 @@ export async function POST(request: NextRequest) {
     // 1. Upload file to Supabase Storage
     const filePath = `pdfs/${businessId}/${productId}/${file.name}`;
     const fileBuffer = await file.arrayBuffer();
+    console.log(`Processing PDF ${file.name}, size: ${Math.round(fileBuffer.byteLength / 1024)} KB`);
     
     // Check if bucket exists, if not try alternative bucket
     const { data: buckets } = await supabaseAdmin
@@ -70,6 +81,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`PDF uploaded successfully to ${bucketName}/${filePath}`);
+
     // Get public URL
     const { data: { publicUrl } } = supabaseAdmin.storage
       .from(bucketName)
@@ -96,10 +109,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. For this implementation, we'll simulate text extraction and chunking
-    // In a real implementation, you would use a library like pdf.js or a serverless function
-    
-    // 4. Create default QR code
+    console.log(`Product created successfully with ID: ${productId}`);
+
+    // 3. Create default QR code
     const { error: qrError } = await supabaseAdmin
       .from('qr_codes')
       .insert({
@@ -115,94 +127,154 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process PDF in the background (simulated for now)
-    setTimeout(async () => {
+    console.log(`QR code created successfully for product: ${productId}`);
+
+    // 4. Process PDF in the background
+    // Use a response object to provide immediate feedback while processing happens
+    const response = NextResponse.json({
+      success: true,
+      productId,
+      qrTextTag,
+      message: 'Product created successfully. PDF processing has begun.'
+    });
+
+    // Process PDF asynchronously
+    (async () => {
       try {
-        // Simulate chunks - in a real implementation, you would extract actual text from the PDF
-        const sampleChunks = [
-          {
-            content: `Sample extracted text from ${file.name} - chunk 1. This would be actual content in a real implementation.`,
-            metadata: { page: 1, section: 'Introduction' }
-          },
-          {
-            content: `Sample extracted text from ${file.name} - chunk 2. This would be actual content in a real implementation.`,
-            metadata: { page: 1, section: 'Features' }
-          },
-          {
-            content: `Sample extracted text from ${file.name} - chunk 3. This would be actual content in a real implementation.`,
-            metadata: { page: 2, section: 'Specifications' }
-          },
-        ];
+        console.log(`Starting PDF processing for ${file.name}, product ID: ${productId}`);
         
-        // Generate embeddings and store chunks
-        for (const chunk of sampleChunks)
+        // Use PDFRest to process the PDF
+        const pdfBuffer = Buffer.from(await file.arrayBuffer());
+        
+        try {
+          const pdfChunks = await processPdfToChunks(pdfBuffer, file.name);
+          console.log(`Processed PDF into ${pdfChunks.length} chunks`);
+          
+          // Check if we have valid chunks
+          if (pdfChunks.length === 0) {
+            throw new Error('No chunks were extracted from the PDF');
+          }
+          
+          let successfulChunks = 0;
+          
+          // Generate embeddings and store chunks
+          for (const chunk of pdfChunks) {
+            try {
+              // Generate embedding using OpenAI
+              const embeddingResponse = await openai.embeddings.create({
+                model: "text-embedding-3-small",
+                input: chunk.content,
+              });
+              
+              // Get the embedding vector
+              const embedding = embeddingResponse.data[0].embedding;
+              
+              // Calculate chunk hash
+              const chunkHash = Buffer.from(chunk.content.substring(0, 100)).toString('base64');
+              
+              // Count tokens properly
+              const tokenCount = countTokens(chunk.content);
+              
+              // Store chunk with embedding
+              const { error: insertError } = await supabaseAdmin.from('pdf_chunks').insert({
+                product_id: productId,
+                chunk_hash: chunkHash,
+                content: chunk.content,
+                embedding: embedding,
+                token_start: 0,
+                token_end: tokenCount,
+                metadata: chunk.metadata
+              });
+              
+              if (insertError) {
+                console.error(`Error storing chunk: ${insertError.message}`);
+                continue;
+              }
+              
+              successfulChunks++;
+              console.log(`Stored chunk with embedding: ${chunkHash.substring(0, 20)}...`);
+            } catch (embeddingError) {
+              console.error('Error generating embedding:', embeddingError);
+              // Store chunk without embedding if there's an error
+              const chunkHash = Buffer.from(chunk.content.substring(0, 100)).toString('base64');
+              await supabaseAdmin.from('pdf_chunks').insert({
+                product_id: productId,
+                chunk_hash: chunkHash,
+                content: chunk.content,
+                token_start: 0,
+                token_end: chunk.content.length,
+                metadata: chunk.metadata
+              });
+            }
+          }
+          
+          console.log(`Successfully stored ${successfulChunks} of ${pdfChunks.length} chunks`);
+          
+          // Update product status to ready
+          await supabaseAdmin
+            .from('products')
+            .update({ status: 'ready' })
+            .eq('id', productId);
+            
+          console.log(`PDF processing completed for product ${productId}`);
+        } catch (pdfError: any) {
+          console.error(`PDF processing error: ${pdfError.message}`);
+          
+          // Store a single error chunk
+          const errorContent = `Unable to process PDF "${file.name}": ${pdfError.message || 'Unknown error'}`;
+          
           try {
-            // Generate embedding using OpenAI
+            // Generate embedding for the error message
             const embeddingResponse = await openai.embeddings.create({
               model: "text-embedding-3-small",
-              input: chunk.content,
+              input: errorContent,
             });
             
-            // Get the embedding vector
-            const embedding = embeddingResponse.data[0].embedding;
+            const errorChunkHash = Buffer.from(errorContent.substring(0, 100)).toString('base64');
+            const tokenCount = countTokens(errorContent);
             
-            // Calculate chunk hash
-            const chunkHash = Buffer.from(chunk.content.substring(0, 100)).toString('base64');
-            
-            // Import the token counting function
-            const { countTokens } = await import('@/utils/vectorDB');
-            
-            // Count tokens properly
-            const tokenCount = countTokens(chunk.content);
-            
-            // Store chunk with embedding
+            // Store error chunk with embedding
             await supabaseAdmin.from('pdf_chunks').insert({
               product_id: productId,
-              chunk_hash: chunkHash,
-              content: chunk.content,
-              embedding: embedding,
+              chunk_hash: errorChunkHash,
+              content: errorContent,
+              embedding: embeddingResponse.data[0].embedding,
               token_start: 0,
               token_end: tokenCount,
-              metadata: chunk.metadata
+              metadata: { page: 0, section: 'Error' }
             });
             
-            console.log(`Stored chunk with embedding: ${chunkHash.substring(0, 20)}...`);
+            console.log('Stored error information as a chunk');
           } catch (embeddingError) {
-            console.error('Error generating embedding:', embeddingError);
-            // Store chunk without embedding if there's an error
-            const chunkHash = Buffer.from(chunk.content.substring(0, 100)).toString('base64');
+            console.error('Error generating embedding for error message:', embeddingError);
+            // Store without embedding
             await supabaseAdmin.from('pdf_chunks').insert({
               product_id: productId,
-              chunk_hash: chunkHash,
-              content: chunk.content,
+              chunk_hash: Buffer.from(errorContent.substring(0, 100)).toString('base64'),
+              content: errorContent,
               token_start: 0,
-              token_end: chunk.content.length,
-              metadata: chunk.metadata
+              token_end: errorContent.length,
+              metadata: { page: 0, section: 'Error' }
             });
           }
-        
-        // Update product status to ready
-        await supabaseAdmin
-          .from('products')
-          .update({ status: 'ready' })
-          .eq('id', productId);
           
+          // Update product status to indicate there was an issue
+          await supabaseAdmin
+            .from('products')
+            .update({ status: 'error' })
+            .eq('id', productId);
+        }
       } catch (error) {
-        console.error('Error in background processing:', error);
+        console.error('Error in PDF processing:', error);
         // Update product status to failed if there's an error
         await supabaseAdmin
           .from('products')
           .update({ status: 'failed' })
           .eq('id', productId);
       }
-    }, 5000);
+    })();
 
-    return NextResponse.json({
-      success: true,
-      productId,
-      qrTextTag,
-      message: 'Product created successfully. PDF processing has begun.'
-    });
+    return response;
     
   } catch (error) {
     console.error('API Error:', error);

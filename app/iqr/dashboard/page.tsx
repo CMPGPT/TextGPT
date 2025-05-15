@@ -10,7 +10,7 @@ import { QRCreationForm } from '@/components/iqr/dashboard/qrcreationform';
 import { ProductList } from '@/components/iqr/dashboard/productlist';
 import { Analytics } from '@/components/iqr/dashboard/analyticsoverview';
 import { MessageLogs } from '@/components/iqr/dashboard/massagelogs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type BusinessInfo = {
   id: string;
@@ -27,14 +27,38 @@ type BusinessInfo = {
 
 export default function IQRDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false);
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('create');
+  const [searchFilter, setSearchFilter] = useState<string>('');
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // Update URL without causing a navigation
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', value);
+    window.history.pushState({}, '', url);
+  };
 
   useEffect(() => {
+    // Get tab from URL params
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['create', 'products', 'analytics', 'messages'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+
+    // Get search filter from URL params
+    const searchParam = searchParams.get('search');
+    if (searchParam) {
+      setSearchFilter(searchParam);
+    }
+
     // Check for authentication
     const businessId = localStorage.getItem('iqr_business_id');
     const userName = localStorage.getItem('iqr_username');
@@ -72,7 +96,7 @@ export default function IQRDashboard() {
     };
 
     fetchBusinessData();
-  }, [router, supabase]);
+  }, [router, supabase, searchParams]);
 
   const handleSaveBusinessInfo = async (data: BusinessInfo) => {
     try {
@@ -134,7 +158,7 @@ export default function IQRDashboard() {
           businessName={businessInfo.name}
         />
         
-        <Tabs defaultValue="create" className="space-y-6">
+        <Tabs defaultValue={activeTab} value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-secondary">
             <TabsTrigger value="create">Create Product</TabsTrigger>
             <TabsTrigger value="products">Products & QR Codes</TabsTrigger>
@@ -162,7 +186,7 @@ export default function IQRDashboard() {
           
           <TabsContent value="messages" className="mt-0">
             <div className="p-4 bg-card rounded-lg">
-              <MessageLogs businessId={businessInfo.id} />
+              <MessageLogs businessId={businessInfo.id} initialSearchQuery={searchFilter} />
             </div>
           </TabsContent>
         </Tabs>

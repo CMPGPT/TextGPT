@@ -6,6 +6,6 @@ export const metadata: Metadata = {
   description: "Create your IQR.codes account to start building AI-powered SMS experiences.",
 };
 
-export default function RegisterPage() {
+export default function IQRSignUpPage() {
   return <RegisterForm />;
 } 

@@ -1,18 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { useIQRChat, IQRMessage, Product } from '@/hooks/use-iqr-chat';
+import { useIQRChat, IQRMessage } from '@/hooks/use-iqr-chat';
 import { IQRChatMessage } from './IQRChatMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Send, ShoppingBag } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface IQRChatProps {
   businessId: string;
@@ -22,10 +15,8 @@ export function IQRChat({ businessId }: IQRChatProps) {
   const {
     messages,
     input,
-    products,
-    selectedProduct,
+    business,
     handleInputChange,
-    handleProductSelect,
     handleSubmit,
     isLoading,
     error,
@@ -50,30 +41,9 @@ export function IQRChat({ businessId }: IQRChatProps) {
           <h1 className="text-xl font-bold text-iqr-400">IQR.code</h1>
         </div>
         
-        {products.length > 1 && (
-          <Select
-            value={selectedProduct?.id}
-            onValueChange={(value) => {
-              const product = products.find(p => p.id === value);
-              if (product) handleProductSelect(product);
-            }}
-          >
-            <SelectTrigger className="w-[180px] bg-iqr-100 border-iqr-200/30 text-iqr-400">
-              <SelectValue placeholder="Select product" />
-            </SelectTrigger>
-            <SelectContent className="bg-iqr-100 border-iqr-200/30 text-iqr-400">
-              {products.map((product) => (
-                <SelectItem 
-                  key={product.id} 
-                  value={product.id}
-                  className="focus:bg-iqr-200/20 focus:text-iqr-400"
-                >
-                  {product.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="text-sm text-iqr-300">
+          {business ? business.name : 'Product Chat'}
+        </div>
       </div>
 
       {/* Message Container - Scrollable area with flex-grow */}
@@ -83,12 +53,12 @@ export function IQRChat({ businessId }: IQRChatProps) {
             <h2 className="text-xl font-semibold mb-2 text-iqr-400">Welcome to Product Chat</h2>
             <p className="max-w-md text-iqr-300">
               Start a conversation with our virtual assistant to learn more about
-              {selectedProduct ? ` ${selectedProduct.name}` : ' our products'}.
+              {business ? ` ${business.name}'s products` : ' our products'}.
             </p>
-            {selectedProduct && (
+            {business && (
               <div className="mt-6 bg-iqr-100/70 border border-iqr-200/30 rounded-lg p-4 max-w-md">
-                <h3 className="font-semibold text-iqr-200 mb-2">{selectedProduct.name}</h3>
-                <p className="text-iqr-300 text-sm">{selectedProduct.description}</p>
+                <h3 className="font-semibold text-iqr-200 mb-2">{business.name}</h3>
+                <p className="text-iqr-300 text-sm">Ask me about our products!</p>
               </div>
             )}
           </div>
@@ -117,7 +87,7 @@ export function IQRChat({ businessId }: IQRChatProps) {
           <Input
             value={input}
             onChange={handleInputChange}
-            placeholder="Ask about this product..."
+            placeholder="Ask about our products..."
             disabled={isLoading}
             className="flex-1 bg-iqr-100/70 border-iqr-200/30 text-iqr-400 focus-visible:ring-iqr-200 placeholder:text-iqr-300/50"
           />

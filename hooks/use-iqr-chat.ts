@@ -19,6 +19,14 @@ export interface Product {
   system_prompt?: string;
 }
 
+export interface Business {
+  id: string;
+  name: string;
+  website_url?: string;
+  support_email?: string;
+  support_phone?: string;
+}
+
 export function useIQRChat(businessId: string) {
   const [messages, setMessages] = useState<IQRMessage[]>([]);
   const [input, setInput] = useState('');
@@ -26,7 +34,7 @@ export function useIQRChat(businessId: string) {
   const [error, setError] = useState<string | null>(null);
   const [anonymousId, setAnonymousId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize anonymousId from sessionStorage on mount
@@ -44,31 +52,52 @@ export function useIQRChat(businessId: string) {
     }
   }, [businessId]);
 
-  // Fetch products for the business and chat history when anonymousId is available
+  // Fetch business data, products and chat history when anonymousId is available
   useEffect(() => {
     if (anonymousId && !isInitialized) {
+      fetchBusinessData();
       fetchBusinessProducts();
       fetchChatHistory();
       setIsInitialized(true);
     }
   }, [anonymousId, isInitialized]);
 
+  // Fetch business information
+  const fetchBusinessData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log(`[CLIENT] Fetching business data for business ID: ${businessId}`);
+      const response = await fetch(`/api/iqr/products?businessId=${businessId}&businessInfo=true`);
+      if (!response.ok) throw new Error('Failed to fetch business data');
+      
+      const data = await response.json();
+      if (data.business) {
+        console.log(`[CLIENT] Retrieved business data: ${data.business.name}`);
+        setBusiness(data.business);
+      }
+    } catch (err) {
+      console.error('[CLIENT] Error fetching business data:', err);
+      setError('Failed to fetch business information');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [businessId]);
+
   // Fetch products for the business
   const fetchBusinessProducts = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log(`[CLIENT] Fetching products for business ID: ${businessId}`);
       const response = await fetch(`/api/iqr/products?businessId=${businessId}`);
       if (!response.ok) throw new Error('Failed to fetch products');
       
       const data = await response.json();
-      setProducts(data);
-      
-      // Set the first product as selected by default if available
-      if (data.length > 0) {
-        setSelectedProduct(data[0]);
+      if (data.products) {
+        console.log(`[CLIENT] Retrieved ${data.products.length} products`);
+        setProducts(data.products);
       }
     } catch (err) {
-      console.error('Error fetching business products:', err);
+      console.error('[CLIENT] Error fetching business products:', err);
       setError('Failed to fetch product information');
     } finally {
       setIsLoading(false);
@@ -81,12 +110,14 @@ export function useIQRChat(businessId: string) {
     
     try {
       setIsLoading(true);
+      console.log(`[CLIENT] Fetching chat history for user: ${anonymousId}`);
       const response = await fetch(`/api/iqr/chat/history?anonymousId=${anonymousId}&businessId=${businessId}`);
       if (!response.ok) throw new Error('Failed to fetch chat history');
       
       const historyMessages = await response.json();
       
       if (historyMessages && historyMessages.length > 0) {
+        console.log(`[CLIENT] Found ${historyMessages.length} messages in history`);
         // Filter out function messages and format
         const formattedMessages = historyMessages
           .filter((msg: any) => msg.role !== 'function')
@@ -97,9 +128,11 @@ export function useIQRChat(businessId: string) {
           }));
         
         setMessages(formattedMessages);
+      } else {
+        console.log(`[CLIENT] No chat history found`);
       }
     } catch (err) {
-      console.error('Error fetching IQR chat history:', err);
+      console.error('[CLIENT] Error fetching IQR chat history:', err);
     } finally {
       setIsLoading(false);
     }
@@ -110,16 +143,11 @@ export function useIQRChat(businessId: string) {
     setInput(e.target.value);
   }, []);
 
-  // Handle product selection
-  const handleProductSelect = useCallback((product: Product) => {
-    setSelectedProduct(product);
-  }, []);
-
   // Handle form submission
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || !selectedProduct) return;
+      if (!input.trim()) return;
 
       // Add user message to the list
       const userMessage: IQRMessage = {
@@ -133,6 +161,8 @@ export function useIQRChat(businessId: string) {
       setError(null);
 
       try {
+        console.log(`[CLIENT] Sending message to API for business ${businessId}`);
+        
         // Send the message to our API
         const response = await fetch('/api/iqr/chat', {
           method: 'POST',
@@ -143,16 +173,18 @@ export function useIQRChat(businessId: string) {
             messages: [userMessage],
             anonymous_id: anonymousId,
             business_id: businessId,
-            product_id: selectedProduct.id,
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to send message');
+          const errorText = await response.text();
+          console.error(`[CLIENT] API error (${response.status}):`, errorText); 
+          throw new Error(`API error (${response.status}): ${errorText || 'No response details'}`);
         }
 
         // Get the assistant response and metadata (if available)
         const responseData = await response.text();
+        console.log(`[CLIENT] Received response from API, length: ${responseData.length} chars`);
         
         // Check if there's metadata in the response headers
         const functionCallUsed = response.headers.get('X-Function-Call-Used') === 'true';
@@ -166,13 +198,13 @@ export function useIQRChat(businessId: string) {
         
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
-        console.error('Error sending IQR message:', err);
-        setError('Failed to send message. Please try again.');
+        console.error('[CLIENT] Error sending IQR message:', err);
+        setError(`Failed to send message: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }
     },
-    [input, anonymousId, businessId, selectedProduct]
+    [input, anonymousId, businessId]
   );
 
   // Clear chat history
@@ -181,6 +213,7 @@ export function useIQRChat(businessId: string) {
     
     setIsLoading(true);
     try {
+      console.log(`[CLIENT] Clearing chat history for user: ${anonymousId}`);
       const response = await fetch(`/api/iqr/chat/history?anonymousId=${anonymousId}&businessId=${businessId}`, {
         method: 'DELETE',
       });
@@ -189,10 +222,11 @@ export function useIQRChat(businessId: string) {
         throw new Error('Failed to clear chat history');
       }
 
+      console.log(`[CLIENT] Chat history cleared successfully`);
       // Clear messages in state
       setMessages([]);
     } catch (err) {
-      console.error('Error clearing IQR chat history:', err);
+      console.error('[CLIENT] Error clearing IQR chat history:', err);
       setError('Failed to clear chat history. Please try again.');
     } finally {
       setIsLoading(false);
@@ -203,9 +237,8 @@ export function useIQRChat(businessId: string) {
     messages,
     input,
     products,
-    selectedProduct,
+    business,
     handleInputChange,
-    handleProductSelect,
     handleSubmit,
     isLoading,
     error,

@@ -18,17 +18,29 @@ interface Message {
 // Define function schemas for OpenAI function calling
 const functionSchemas = [
   {
-    name: "query_product_details",
-    description: "Retrieve specific details about the product when the user asks about features, specifications, or capabilities that aren't covered in the context.",
+    name: "get_product_details",
+    description: "Get detailed information about a specific product when the user asks about product features, specifications, or capabilities.",
     parameters: {
       type: "object",
       properties: {
-        query: { 
+        product_name: { 
           type: "string", 
-          description: "The specific aspect of the product the user is asking about"
+          description: "The name or partial name of the product to search for"
+        },
+        attribute: {
+          type: "string",
+          description: "Optional specific attribute or aspect of the product the user is asking about"
         }
       },
-      required: ["query"]
+      required: ["product_name"]
+    }
+  },
+  {
+    name: "list_all_products",
+    description: "List all products available from this business when the user asks about available products or product options.",
+    parameters: {
+      type: "object",
+      properties: {}
     }
   },
   {
@@ -44,17 +56,33 @@ const functionSchemas = [
       },
       required: ["search_term"]
     }
+  },
+  {
+    name: "get_business_information",
+    description: "Get information about the business when the user asks about contact details, support options, or general information about the company.",
+    parameters: {
+      type: "object",
+      properties: {
+        attribute: { 
+          type: "string", 
+          description: "Optional specific attribute of the business information like 'contact', 'support', 'website', etc."
+        }
+      }
+    }
   }
 ];
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[API] IQR Chat API: Request received');
+    
     const {
       messages,
       anonymous_id,
       business_id,
-      product_id,
     } = await req.json();
+
+    console.log(`[API] IQR Chat API: Processing request for business ${business_id}`);
 
     // Validate required parameters
     if (!messages || !messages.length) {
@@ -78,16 +106,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!product_id) {
-      return NextResponse.json(
-        { error: 'No product ID provided' },
-        { status: 400 }
-      );
-    }
-
     const supabase = createClient();
     
     // Step 1: Get business information
+    console.log(`[API] Fetching business information for business ${business_id}`);
     const { data: businessData, error: businessError } = await supabase
       .from('businesses')
       .select('name, website_url, support_email, support_phone')
@@ -95,77 +117,91 @@ export async function POST(req: NextRequest) {
       .single();
     
     if (businessError) {
-      console.error('Error fetching business data:', businessError);
+      console.error('[API] Error fetching business data:', businessError);
       return NextResponse.json(
         { error: 'Failed to fetch business information' },
         { status: 500 }
       );
     }
     
-    // Step 2: Get product information
-    const { data: productData, error: productError } = await supabase
-      .from('products')
-      .select('name, description, system_prompt')
-      .eq('id', product_id)
-      .single();
+    console.log(`[API] Successfully retrieved business information: ${businessData.name}`);
     
-    if (productError) {
-      console.error('Error fetching product data:', productError);
+    // Step 2: Get all products for the business
+    console.log(`[API] Fetching products for business ${business_id}`);
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, description, system_prompt')
+      .eq('business_id', business_id)
+      .eq('status', 'ready');
+    
+    if (productsError) {
+      console.error('[API] Error fetching products data:', productsError);
       return NextResponse.json(
-        { error: 'Failed to fetch product information' },
+        { error: 'Failed to fetch products information' },
         { status: 500 }
       );
     }
 
-    // Step 3: Get relevant PDF chunks using vector search
-    const userQuery = messages[messages.length - 1].content;
-    let relevantChunks: any[] = [];
+    if (!productsData || productsData.length === 0) {
+      console.log(`[API] No products found for business ${business_id}`);
+      return NextResponse.json(
+        { error: 'No products found for this business' },
+        { status: 404 }
+      );
+    }
+
+    console.log(`[API] Retrieved ${productsData.length} products for business ${business_id}`);
     
+    // Step 3: Get the user query from the last message
+    const userQuery = messages[messages.length - 1].content;
+    console.log(`[API] User query: "${userQuery.substring(0, 100)}${userQuery.length > 100 ? '...' : ''}"`);
+    
+    // Step 4: Generate embeddings for the query to find relevant PDF chunks
+    let relevantChunks = [];
     try {
-      // Generate embedding for the user query
       const embedding = await generateEmbedding(userQuery);
+      console.log(`[API] Generated embedding for vector search`);
       
-      // Search for relevant PDF chunks using the embedding
-      const { data: chunks, error: chunksError } = await supabase
-        .rpc('match_pdf_chunks', {
+      // Use match_pdf_chunks_all RPC function for vector search across all products
+      const { data: matchingChunks, error: matchError } = await supabase.rpc(
+        'match_pdf_chunks_all',
+        {
           query_embedding: embedding,
-          match_threshold: 0.7,
-          match_count: 5,
-          p_product_id: product_id
-        });
-      
-      if (chunksError) {
-        console.error('Error searching PDF chunks:', chunksError);
-      } else if (chunks && chunks.length > 0) {
-        relevantChunks = chunks;
-      } else {
-        // Fallback to a regular query if vector search fails or returns no results
-        const { data: fallbackChunks, error: fallbackError } = await supabase
-          .from('pdf_chunks')
-          .select('content, metadata')
-          .eq('product_id', product_id)
-          .limit(5);
-        
-        if (!fallbackError && fallbackChunks) {
-          relevantChunks = fallbackChunks;
+          match_threshold: 0.5,
+          match_count: 5
         }
+      );
+      
+      if (matchError) {
+        console.error('[API] Error with vector search:', matchError);
+      } else if (matchingChunks && matchingChunks.length > 0) {
+        // Filter to only include chunks for this business if needed
+        const filteredChunks = matchingChunks.filter((chunk: any) => 
+          !chunk.business_id || chunk.business_id === business_id
+        );
+        relevantChunks = filteredChunks;
+        console.log(`[API] Found ${filteredChunks.length} relevant PDF chunks via vector search for this business`);
+      } else {
+        console.log(`[API] No relevant chunks found via vector search`);
       }
     } catch (embeddingError) {
-      console.error('Error with vector search:', embeddingError);
+      console.error('[API] Error with vector search:', embeddingError);
       
       // Fallback to a regular query
       const { data: fallbackChunks, error: fallbackError } = await supabase
         .from('pdf_chunks')
         .select('content, metadata')
-        .eq('product_id', product_id)
+        .eq('business_id', business_id)
         .limit(5);
       
       if (!fallbackError && fallbackChunks) {
         relevantChunks = fallbackChunks;
+        console.log(`[API] Found ${fallbackChunks.length} chunks using fallback query after error`);
       }
     }
 
-    // Step 4: Get previous chat history
+    // Step 5: Get previous chat history
+    console.log(`[API] Fetching chat history for user ${anonymous_id}`);
     const { data: historyData, error: historyError } = await supabase
       .from('iqr_chat_messages')
       .select('role, content')
@@ -175,13 +211,16 @@ export async function POST(req: NextRequest) {
       .limit(10);
     
     if (historyError) {
-      console.error('Error fetching chat history:', historyError);
+      console.error('[API] Error fetching chat history:', historyError);
+    } else {
+      console.log(`[API] Retrieved ${historyData?.length || 0} messages from chat history`);
     }
 
-    // Step 5: Build the conversation with system prompt and context
+    // Step 6: Build the conversation with system prompt and context
+    console.log(`[API] Building system prompt and conversation history`);
     const systemPrompt = buildSystemPrompt(
       businessData,
-      productData,
+      productsData,
       relevantChunks
     );
     
@@ -211,18 +250,8 @@ export async function POST(req: NextRequest) {
       content: userQuery
     });
 
-    // Detect if the query is likely asking for product details not covered in the context
-    const isAskingForProductDetails = containsProductQuestion(userQuery);
-
-    // Add guidance for function calling if needed
-    if (isAskingForProductDetails) {
-      conversationHistory.push({
-        role: 'system',
-        content: 'The user is asking about specific product details. If you don\'t have the complete information in your context, use the query_product_details function to search for more information.'
-      });
-    }
-
-    // Step 6: Make API call to OpenAI with function calling
+    // Step 7: Make API call to OpenAI with function calling
+    console.log(`[API] Sending request to OpenAI`);
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: conversationHistory,
@@ -244,18 +273,37 @@ export async function POST(req: NextRequest) {
       
       // Parse the function call arguments
       const functionName = toolCall.function.name;
-      const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+      let functionArgs: Record<string, any> = {};
       
+      try {
+        functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+      } catch (parseError) {
+        console.error('[API] Error parsing function arguments:', parseError);
+        functionArgs = {};
+      }
+      
+      console.log(`[API] Function called by OpenAI: ${functionName}`);
       let functionResult;
       
-      // Handle different function calls
-      if (functionName === 'query_product_details') {
-        functionResult = await handleProductDetailsQuery(product_id, functionArgs.query);
-      } else if (functionName === 'search_related_products') {
-        functionResult = await handleRelatedProductsSearch(business_id, product_id, functionArgs.search_term);
-      } else {
-        functionResult = { error: 'Unknown function' };
+      try {
+        // Handle different function calls
+        if (functionName === 'get_product_details') {
+          functionResult = await handleGetProductDetails(business_id, productsData, functionArgs.product_name as string, functionArgs.attribute as string);
+        } else if (functionName === 'list_all_products') {
+          functionResult = await handleListAllProducts(productsData);
+        } else if (functionName === 'search_related_products') {
+          functionResult = await handleRelatedProductsSearch(business_id, functionArgs.search_term as string);
+        } else if (functionName === 'get_business_information') {
+          functionResult = await handleGetBusinessInformation(businessData, functionArgs.attribute as string);
+        } else {
+          functionResult = { error: 'Unknown function' };
+        }
+      } catch (funcError: any) {
+        console.error(`[API] Error calling function ${functionName}:`, funcError);
+        functionResult = { error: `Error executing function: ${funcError.message || 'Unknown error'}` };
       }
+      
+      console.log(`[API] Function result retrieved, making second call to OpenAI`);
       
       // Call OpenAI again with the function result
       const functionResponseCompletion = await openai.chat.completions.create({
@@ -282,20 +330,22 @@ export async function POST(req: NextRequest) {
       aiResponse = completion.choices[0].message.content || "I'm sorry, I couldn't generate a response.";
     }
 
-    // Step 7: Save messages to the database
+    console.log(`[API] Generated response, length: ${aiResponse.length} chars`);
+
+    // Step 8: Save messages to the database
     // Save user message
     const { error: userMsgError } = await supabase
       .from('iqr_chat_messages')
       .insert({
         business_id,
-        product_id,
+        product_id: null, // No specific product
         user_phone: anonymous_id,
         role: 'user',
         content: userQuery
       });
     
     if (userMsgError) {
-      console.error('Error saving user message:', userMsgError);
+      console.error('[API] Error saving user message:', userMsgError);
     }
     
     // Save assistant message
@@ -303,7 +353,7 @@ export async function POST(req: NextRequest) {
       .from('iqr_chat_messages')
       .insert({
         business_id,
-        product_id,
+        product_id: null, // No specific product
         user_phone: anonymous_id,
         role: 'assistant',
         content: aiResponse,
@@ -311,17 +361,18 @@ export async function POST(req: NextRequest) {
       });
     
     if (assistantMsgError) {
-      console.error('Error saving assistant message:', assistantMsgError);
+      console.error('[API] Error saving assistant message:', assistantMsgError);
     }
 
     // Return the AI response
+    console.log(`[API] IQR Chat API: Request completed successfully`);
     return new NextResponse(aiResponse, {
       headers: {
         'X-Function-Call-Used': functionCallUsed ? 'true' : 'false'
       }
     });
   } catch (error) {
-    console.error('Error in chat API:', error);
+    console.error('[API] Error in chat API:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -342,21 +393,15 @@ async function generateEmbedding(text: string): Promise<number[]> {
 // Helper function to build the system prompt
 function buildSystemPrompt(
   business: any,
-  product: any,
+  products: any[],
   relevantChunks: any[]
 ): string {
   // Base system prompt
   let systemPrompt = `You are a helpful product assistant for ${business.name}.`;
   
-  // Add product-specific system prompt if available
-  if (product.system_prompt) {
-    systemPrompt += `\n\n${product.system_prompt}`;
-  } else {
-    systemPrompt += `\n\nYou are providing information about ${product.name}. ${product.description || ''}`;
-  }
-  
   // Add business contact information
-  systemPrompt += `\n\nIf the customer needs to contact ${business.name} directly, provide the following information:`;
+  systemPrompt += `\n\nBusiness Information:`;
+  systemPrompt += `\n- Name: ${business.name}`;
   
   if (business.website_url) {
     systemPrompt += `\n- Website: ${business.website_url}`;
@@ -368,177 +413,121 @@ function buildSystemPrompt(
     systemPrompt += `\n- Phone: ${business.support_phone}`;
   }
   
+  // Add product information
+  systemPrompt += `\n\nThis business offers ${products.length} product(s). You can access detailed information about any product using the get_product_details function or list all products using the list_all_products function.`;
+  
   // Add information from PDF chunks
   if (relevantChunks.length > 0) {
-    systemPrompt += `\n\nHere's specific information about this product that may be helpful for answering the user's question:\n\n`;
+    systemPrompt += `\n\nHere's specific information that may be helpful for answering the user's question:\n\n`;
     
     relevantChunks.forEach((chunk, index) => {
       systemPrompt += `---\nInformation ${index + 1}:\n${chunk.content}\n---\n\n`;
     });
-    
-    systemPrompt += `Use the above information to answer the user's question accurately. If the information doesn't directly address their question, use the function calling capability to search for more specific information.`;
   }
   
-  systemPrompt += `\n\nBe friendly, helpful, and concise in your responses. Always prioritize accuracy over speculation.`;
+  systemPrompt += `\nIf you don't have enough information to answer the user's question accurately, use the appropriate function to fetch more details. Be friendly, helpful, and concise in your responses. Always prioritize accuracy over speculation.`;
+  
+  // Add instruction to avoid Markdown formatting
+  systemPrompt += "\n\nIMPORTANT: DO NOT format your responses using Markdown. Provide plain text responses without any special formatting.";
   
   return systemPrompt;
 }
 
-// Helper function to determine if a query is asking for product details
-function containsProductQuestion(query: string): boolean {
-  const productQuestionPatterns = [
-    /what (is|are) the (feature|spec|specification|detail|information)/i,
-    /how (does|do) (it|this product|the product) (work|function)/i,
-    /can (it|this product|the product) (do|perform|handle)/i,
-    /tell me (more|about) (the|this) product/i,
-    /(feature|capability|specification)/i,
-    /comparison|versus|alternative|similar/i
-  ];
+// Function handler implementations
+async function handleGetProductDetails(businessId: string, products: any[], productName: string, attribute?: string): Promise<any> {
+  console.log(`[API] Running function: handleGetProductDetails for "${productName}"`);
   
-  return productQuestionPatterns.some(pattern => pattern.test(query));
-}
-
-// Handler for product details queries
-async function handleProductDetailsQuery(productId: string, query: string) {
-  try {
-    const supabase = createClient();
-    
-    // First try to find more specific information in the PDF chunks
-    const embedding = await generateEmbedding(query);
-    
-    const { data: chunks, error: chunksError } = await supabase
-      .rpc('match_pdf_chunks', {
-        query_embedding: embedding,
-        match_threshold: 0.6, // Lower threshold for more results
-        match_count: 8, // More chunks for detailed query
-        p_product_id: productId
-      });
-    
-    if (chunksError) {
-      console.error('Error in detailed product search:', chunksError);
-      return { 
-        success: false, 
-        message: "Couldn't find detailed product information",
-        error: chunksError.message
-      };
-    }
-    
-    if (chunks && chunks.length > 0) {
-      return {
-        success: true,
-        product_details: chunks.map((chunk: any) => chunk.content).join('\n\n'),
-        metadata: {
-          source: 'pdf_chunks',
-          count: chunks.length
-        }
-      };
-    }
-    
-    // If no results from chunks, check if there's additional product info
-    const { data: productDetails, error: productError } = await supabase
-      .from('product_details')
-      .select('*')
-      .eq('product_id', productId)
-      .single();
-    
-    if (!productError && productDetails) {
-      return {
-        success: true,
-        product_details: productDetails,
-        metadata: {
-          source: 'product_details'
-        }
-      };
-    }
-    
-    // If we still don't have information, return a useful failure response
-    return {
-      success: false,
-      message: "I couldn't find specific information about this aspect of the product. Would you like me to note this question for the business owner to address later?",
-      metadata: {
-        query: query,
-        product_id: productId
-      }
-    };
-  } catch (error: any) {
-    console.error('Error handling product details query:', error);
-    return {
-      success: false,
-      message: "An error occurred while fetching product details.",
-      error: error.message
+  // First try exact match
+  let matchedProduct = products.find(p => 
+    p.name.toLowerCase() === productName.toLowerCase()
+  );
+  
+  // If no exact match, try partial match
+  if (!matchedProduct) {
+    matchedProduct = products.find(p => 
+      p.name.toLowerCase().includes(productName.toLowerCase()) ||
+      productName.toLowerCase().includes(p.name.toLowerCase())
+    );
+  }
+  
+  if (!matchedProduct) {
+    return { 
+      error: `I couldn't find any product matching "${productName}".`,
+      available_products: products.map(p => p.name)
     };
   }
+  
+  // Return the product details
+  return {
+    product: matchedProduct
+  };
 }
 
-// Handler for related products search
-async function handleRelatedProductsSearch(businessId: string, productId: string, searchTerm: string) {
-  try {
-    const supabase = createClient();
-    
-    // Get related products from the same business
-    const { data: relatedProducts, error: relatedError } = await supabase
-      .from('products')
-      .select('id, name, description')
-      .eq('business_id', businessId)
-      .neq('id', productId) // Exclude current product
-      .ilike('name', `%${searchTerm}%`)
-      .order('created_at', { ascending: false })
-      .limit(5);
-    
-    if (relatedError) {
-      console.error('Error searching related products:', relatedError);
-      return {
-        success: false,
-        message: "Couldn't find related products",
-        error: relatedError.message
-      };
-    }
-    
-    if (relatedProducts && relatedProducts.length > 0) {
-      return {
-        success: true,
-        related_products: relatedProducts,
-        metadata: {
-          search_term: searchTerm,
-          count: relatedProducts.length
-        }
-      };
-    }
-    
-    // If no direct matches, try a more generic search
-    const { data: genericProducts, error: genericError } = await supabase
-      .from('products')
-      .select('id, name, description')
-      .eq('business_id', businessId)
-      .neq('id', productId)
-      .limit(3);
-    
-    if (!genericError && genericProducts && genericProducts.length > 0) {
-      return {
-        success: true,
-        related_products: genericProducts,
-        message: `I couldn't find products specifically matching "${searchTerm}", but here are some other products from the same business:`,
-        metadata: {
-          search_term: searchTerm,
-          generic_search: true
-        }
-      };
-    }
-    
-    // If we still don't have information, return a useful failure response
+async function handleListAllProducts(products: any[]): Promise<any> {
+  console.log(`[API] Running function: handleListAllProducts`);
+  
+  return {
+    products: products.map(p => ({
+      name: p.name,
+      description: p.description
+    }))
+  };
+}
+
+async function handleRelatedProductsSearch(businessId: string, searchTerm: string): Promise<any> {
+  console.log(`[API] Running function: handleRelatedProductsSearch for "${searchTerm}"`);
+  
+  const supabase = createClient();
+  
+  // This could be improved with vector search
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, name, description')
+    .eq('business_id', businessId)
+    .eq('status', 'ready')
+    .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+  
+  if (error) {
+    console.error('[API] Error searching for related products:', error);
+    return { error: 'Failed to search for related products' };
+  }
+  
+  return {
+    matching_products: data
+  };
+}
+
+async function handleGetBusinessInformation(business: any, attribute?: string): Promise<any> {
+  console.log(`[API] Running function: handleGetBusinessInformation ${attribute ? `for attribute: ${attribute}` : ''}`);
+  
+  if (!attribute) {
+    // Return all business information
+    return { business };
+  }
+  
+  // Handle specific attribute requests
+  const attributeLower = attribute.toLowerCase();
+  
+  if (attributeLower.includes('contact') || attributeLower.includes('support')) {
     return {
-      success: false,
-      message: "I couldn't find any related products matching your query.",
-      metadata: {
-        search_term: searchTerm
+      contact_information: {
+        website: business.website_url,
+        email: business.support_email,
+        phone: business.support_phone
       }
     };
-  } catch (error: any) {
-    console.error('Error handling related products search:', error);
-    return {
-      success: false,
-      message: "An error occurred while searching for related products.",
-      error: error.message
+  }
+  
+  if (attributeLower.includes('website')) {
+    return { website: business.website_url };
+  }
+  
+  if (attributeLower.includes('name') || attributeLower.includes('about')) {
+    return { 
+      name: business.name
     };
   }
+  
+  // Return all information if attribute is not recognized
+  return { business };
 } 

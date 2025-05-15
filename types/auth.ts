@@ -32,4 +32,34 @@ export interface UpdatePasswordData {
 export interface Session {
   user: User;
   expires: Date;
+}
+
+export interface UserRegistrationData {
+  username: string;
+  email: string;
+  password: string;
+  description?: string;
+}
+
+export interface BusinessRegistrationData {
+  name: string;
+  ein: string;
+  address: string;
+  website_url?: string;
+  support_email?: string;
+  support_phone?: string;
+  privacy_policy_url?: string;
+  terms_of_service_url?: string;
+}
+
+export interface SignupPayload {
+  user: UserRegistrationData;
+  business: BusinessRegistrationData;
+}
+
+export interface AuthResult {
+  success: boolean;
+  message: string;
+  error?: any;
+  data?: any;
 } 
