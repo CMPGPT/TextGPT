@@ -1,4 +1,12 @@
 import { splitIntoChunks } from '@/utils/pdfChunkUtils';
+import { getLogger } from '@/utils/logger';
+
+// Initialize logger
+const logger = getLogger('utils:mistralDoc');
+
+// Get memory limits from environment
+const MAX_PDF_SIZE_MB = parseInt(process.env.MAX_PDF_SIZE_MB || '10', 10);
+const MAX_CONTENT_LENGTH = MAX_PDF_SIZE_MB * 1024 * 1024; // Convert to bytes
 
 interface MistralDocumentResponse {
   text: string;
@@ -28,9 +36,24 @@ interface MistralOcrResponse {
  */
 export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Promise<MistralDocumentResponse> {
   try {
+    // Check PDF size
+    if (pdfBuffer.length > MAX_CONTENT_LENGTH) {
+      logger.warn('PDF exceeds size limit', { 
+        size: `${Math.round(pdfBuffer.length / 1024 / 1024)}MB`, 
+        limit: `${MAX_PDF_SIZE_MB}MB` 
+      });
+      return {
+        text: `PDF is too large for processing. Maximum allowed size is ${MAX_PDF_SIZE_MB}MB.`,
+        pages: [{
+          page_num: 1,
+          text: `PDF is too large for processing. Maximum allowed size is ${MAX_PDF_SIZE_MB}MB.`
+        }]
+      };
+    }
+    
     // Check if Mistral API key is available
     if (!process.env.MISTRAL_API_KEY) {
-      console.warn('MISTRAL_API_KEY is not set - returning fallback response');
+      logger.warn('MISTRAL_API_KEY is not set - returning fallback response');
       return {
         text: "PDF processing requires Mistral API Key. Please configure the environment variable.",
         pages: [{
@@ -41,6 +64,10 @@ export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Pr
     }
     
     // Convert buffer to base64
+    logger.info('Converting PDF to base64', { 
+      bufferSize: `${Math.round(pdfBuffer.length / 1024)}KB` 
+    });
+    
     const base64Pdf = pdfBuffer.toString('base64');
     
     // Create the request payload for OCR API
@@ -53,7 +80,10 @@ export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Pr
     };
 
     // Log Mistral API request
-    console.log('Sending request to Mistral OCR API');
+    logger.info('Sending request to Mistral OCR API', {
+      modelName: "mistral-ocr-latest",
+      payloadSize: `${Math.round(base64Pdf.length / 1024)}KB`
+    });
 
     // Call Mistral OCR API
     const response = await fetch('https://api.mistral.ai/v1/ocr', {
@@ -67,13 +97,13 @@ export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Pr
     });
 
     // Log response status
-    console.log(`Mistral API response status: ${response.status}`);
+    logger.info(`Mistral API response received`, { status: response.status });
 
     // Handle rate limiting (429) with retries
     if (response.status === 429 && retries > 0) {
       const retryAfter = response.headers.get('Retry-After') || '2';
       const waitTime = parseInt(retryAfter, 10) * 1000 || 2000;
-      console.log(`Rate limited by Mistral API. Retrying after ${waitTime}ms`);
+      logger.warn(`Rate limited by Mistral API, retrying`, { waitTime: `${waitTime}ms` });
       
       await new Promise(resolve => setTimeout(resolve, waitTime));
       return extractTextFromMistral(pdfBuffer, retries - 1);
@@ -81,16 +111,23 @@ export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Pr
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Mistral API error response:', errorText);
+      logger.error('Mistral API error response', { 
+        status: response.status, 
+        error: errorText 
+      });
       throw new Error(`Mistral API error: ${response.status} - ${errorText}`);
     }
 
     const ocrResult: MistralOcrResponse = await response.json();
-    console.log('Mistral OCR API response received');
+    logger.info('Mistral OCR API response processed', { 
+      pageCount: ocrResult?.pages?.length || 0 
+    });
     
     // Process OCR result into the expected format
     if (!ocrResult || !ocrResult.pages || !Array.isArray(ocrResult.pages)) {
-      console.error('Mistral API response:', JSON.stringify(ocrResult).substring(0, 500) + '...');
+      logger.error('Invalid structure in Mistral OCR API response', { 
+        responsePreview: JSON.stringify(ocrResult).substring(0, 500) + '...' 
+      });
       throw new Error('Invalid structure in Mistral OCR API response');
     }
 
@@ -101,12 +138,17 @@ export async function extractTextFromMistral(pdfBuffer: Buffer, retries = 2): Pr
       text: page.markdown
     }));
 
+    logger.info('Text extraction complete', { 
+      textLength: fullText.length,
+      pageCount: pages.length
+    });
+
     return {
       text: fullText,
       pages: pages
     };
   } catch (error) {
-    console.error('Error extracting text using Mistral:', error);
+    logger.error('Error extracting text using Mistral', { error });
     throw error;
   }
 }
@@ -122,9 +164,23 @@ export async function processPdfToChunks(
   fileName: string
 ): Promise<{ content: string; metadata: { page: number; section: string } }[]> {
   try {
+    // Check PDF size limit
+    if (pdfBuffer.length > MAX_CONTENT_LENGTH) {
+      logger.warn('PDF exceeds size limit for processing', { 
+        fileName,
+        size: `${Math.round(pdfBuffer.length / 1024 / 1024)}MB`, 
+        limit: `${MAX_PDF_SIZE_MB}MB` 
+      });
+      
+      return [{
+        content: `The PDF "${fileName}" exceeds the maximum allowed size of ${MAX_PDF_SIZE_MB}MB for processing. Please upload a smaller file or optimize the current one.`,
+        metadata: { page: 1, section: 'Size Limit Exceeded' }
+      }];
+    }
+    
     // Check if Mistral API key is available
     if (!process.env.MISTRAL_API_KEY) {
-      console.warn('MISTRAL_API_KEY is not set - creating placeholder chunk');
+      logger.warn('MISTRAL_API_KEY is not set - creating placeholder chunk', { fileName });
       return [{
         content: `PDF processing requires Mistral API Key. The file "${fileName}" was uploaded but text extraction was skipped. Please configure the MISTRAL_API_KEY environment variable.`,
         metadata: { page: 1, section: 'Configuration Required' }
@@ -132,12 +188,16 @@ export async function processPdfToChunks(
     }
     
     // Extract text from PDF using Mistral
-    console.log(`Extracting text from ${fileName} using Mistral OCR API`);
+    logger.info(`Extracting text from PDF`, { fileName });
     const extractionResult = await extractTextFromMistral(pdfBuffer);
-    console.log(`Successfully extracted ${extractionResult.text.length} characters of text from ${fileName}`);
+    logger.info(`Text extraction complete`, { 
+      fileName,
+      textLength: extractionResult.text.length,
+      pageCount: extractionResult.pages?.length || 0
+    });
     
     if (!extractionResult.text.trim()) {
-      console.log(`No text extracted from ${fileName}, adding fallback message`);
+      logger.warn(`No text extracted from PDF`, { fileName });
       return [{
         content: `Unable to extract text from "${fileName}". The PDF may be corrupted or contain only images that couldn't be processed.`,
         metadata: { page: 1, section: 'Error' }
@@ -167,13 +227,21 @@ export async function processPdfToChunks(
         allChunks.push(...pageChunksWithMetadata);
       }
       
-      console.log(`Created ${allChunks.length} chunks with page metadata from ${fileName}`);
+      logger.info(`Chunking complete`, { 
+        fileName,
+        chunkCount: allChunks.length,
+        pageCount: extractionResult.pages.length
+      });
+      
       return allChunks;
     } 
     else {
       // No page information, process the full text
       const textChunks = splitIntoChunks(extractionResult.text);
-      console.log(`Created ${textChunks.length} chunks from ${fileName}`);
+      logger.info(`Chunking complete`, { 
+        fileName,
+        chunkCount: textChunks.length
+      });
       
       // Create a chunk object for each text segment
       return textChunks.map((chunkText, index) => ({
@@ -185,7 +253,7 @@ export async function processPdfToChunks(
       }));
     }
   } catch (error) {
-    console.error(`Error processing PDF ${fileName}:`, error);
+    logger.error(`Error processing PDF`, { fileName, error });
     return [{
       content: `Error processing PDF "${fileName}": ${(error as Error).message}`,
       metadata: { page: 0, section: 'Error' }
