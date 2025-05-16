@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Mark this route as dynamic since it will make external API calls
 export const dynamic = 'force-dynamic';
