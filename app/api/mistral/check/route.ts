@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * 1. The API key is valid
  * 2. The connection to Mistral's API is working
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Check if Mistral API key is available in environment variables
     if (!process.env.MISTRAL_API_KEY) {
