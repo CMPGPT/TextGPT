@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (!supabaseAdmin || typeof supabaseAdmin.from !== 'function') {
       logger.error('Supabase client initialization failed');
       return NextResponse.json(
-        { error: 'Database connection error', details: 'Supabase client initialization failed' },
+        { error: 'Database connection error.', details: 'Supabase client initialization failed' },
         { status: 500, headers: corsHeaders }
       );
     }
