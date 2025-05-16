@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "process-pdf-queue": "node scripts/process-pdf-queue.js",
+    "setup-pdf-processing": "curl -X POST \"$NEXT_PUBLIC_APP_URL/api/iqr/setup-migration?admin_key=$ADMIN_API_KEY\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -47,6 +49,7 @@
     "lucide-react": "^0.503.0",
     "next": "^14.1.0",
     "next-themes": "^0.4.6",
+    "node-fetch": "^3.3.2",
     "openai": "^4.28.0",
     "openai-edge": "^1.2.2",
     "postcss": "^8.4.35",

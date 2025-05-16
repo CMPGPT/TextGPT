@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import OpenAI from 'openai';
-import { processPdfToChunks } from '@/utils/mistralDocUtils';
-import { countTokens } from '@/utils/vectorDB';
-import { getLogger } from '@/utils/logger';
+  import { getLogger } from '@/utils/logger';
 
 // Initialize logger
 const logger = getLogger('api:iqr:scan');
@@ -22,11 +19,6 @@ function getMemoryUsage() {
   }
   return { rss: 'n/a', heapTotal: 'n/a', heapUsed: 'n/a', external: 'n/a' };
 }
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // Set up CORS headers for all responses
 const corsHeaders = {
@@ -78,15 +70,6 @@ export async function POST(request: NextRequest) {
       logger.error('Supabase client initialization failed');
       return NextResponse.json(
         { error: 'Database connection error', details: 'Supabase client initialization failed' },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    // Validate OpenAI API key early
-    if (!process.env.OPENAI_API_KEY) {
-      logger.warn('OPENAI_API_KEY is not properly configured');
-      return NextResponse.json(
-        { error: 'AI service configuration error', details: 'Missing OpenAI API key' },
         { status: 500, headers: corsHeaders }
       );
     }
@@ -153,49 +136,49 @@ export async function POST(request: NextRequest) {
     // Only process file upload if a file was provided
     if (file && !skipPdfCheck) {
       // 1. Upload file to Supabase Storage
-      let fileBuffer;
       try {
-        fileBuffer = await file.arrayBuffer();
+        const fileBuffer = await file.arrayBuffer();
         logger.info(`Processing PDF file`, { 
           name: file.name, 
           size: `${Math.round(fileBuffer.byteLength / 1024)}KB`,
           memory: getMemoryUsage()
         });
-      } catch (error) {
-        return handleApiError(error, 'Failed to read file buffer');
-      }
       
-      // Use a simpler approach for storage buckets to reduce potential issues
-      const bucketName = 'iqr-pdfs';
-      const filePath = `pdfs/${businessId}/${productId}/${file.name}`;
-      
-      logger.info(`Using storage bucket`, { bucketName, filePath });
-      
-      try {
-        logger.info(`Uploading file`, { bucketName, filePath });
-        const { data: _uploadData, error } = await supabaseAdmin.storage
-          .from(bucketName)
-          .upload(filePath, fileBuffer, {
-            contentType: file.type,
-            upsert: true,
-          });
+        // Use a simpler approach for storage buckets to reduce potential issues
+        const bucketName = 'iqr-pdfs';
+        const filePath = `pdfs/${businessId}/${productId}/${file.name}`;
         
-        uploadError = error;
+        logger.info(`Using storage bucket`, { bucketName, filePath });
         
-        if (!error) {
-          logger.info('File upload successful');
-          const { data } = supabaseAdmin.storage
+        try {
+          logger.info(`Uploading file`, { bucketName, filePath });
+          const { data: _uploadData, error } = await supabaseAdmin.storage
             .from(bucketName)
-            .getPublicUrl(filePath);
+            .upload(filePath, fileBuffer, {
+              contentType: file.type,
+              upsert: true,
+            });
           
-          publicUrl = data.publicUrl;
-          logger.info(`Generated public URL`, { publicUrl });
-        } else {
-          logger.error(`Storage upload error`, { message: error.message });
+          uploadError = error;
+          
+          if (!error) {
+            logger.info('File upload successful');
+            const { data } = supabaseAdmin.storage
+              .from(bucketName)
+              .getPublicUrl(filePath);
+            
+            publicUrl = data.publicUrl;
+            logger.info(`Generated public URL`, { publicUrl });
+          } else {
+            logger.error(`Storage upload error`, { message: error.message });
+          }
+        } catch (error) {
+          logger.error('Error during file upload', { error, memory: getMemoryUsage() });
+          uploadError = error;
         }
-      } catch (error) {
-        logger.error('Error during file upload', { error, memory: getMemoryUsage() });
-        uploadError = error;
+      } catch (fileError) {
+        logger.error('Error reading file buffer', { error: fileError, memory: getMemoryUsage() });
+        uploadError = fileError;
       }
     } else {
       logger.info('No file provided or PDF check skipped');
@@ -217,7 +200,7 @@ export async function POST(request: NextRequest) {
           system_prompt: systemPrompt || null,
           pdf_url: publicUrl || null,
           qr_text_tag: qrTextTag,
-          status: !file || skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'processing')
+          status: !file || skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'pending_processing')
         });
       
       productError = error;
@@ -274,9 +257,49 @@ export async function POST(request: NextRequest) {
       logger.error('Error creating QR code', { error, memory: getMemoryUsage() });
     }
 
+    // 4. Queue PDF processing in background worker instead of processing directly
+    if (!uploadError && file && !skipPdfCheck) {
+      try {
+        // Create an entry in a processing queue to be picked up by a background worker
+        await supabaseAdmin
+          .from('processing_queue')
+          .insert({
+            product_id: productId,
+            status: 'queued',
+            file_path: publicUrl,
+            created_at: new Date().toISOString()
+          });
+          
+        logger.info('Added PDF to processing queue', { productId });
+        
+        // Trigger background processing via a webhook if available
+        try {
+          const webhookUrl = process.env.PDF_PROCESSING_WEBHOOK_URL;
+          if (webhookUrl) {
+            fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ productId, filePath: publicUrl })
+            }).catch(e => logger.warn('Failed to trigger processing webhook', { error: e }));
+            logger.info('Triggered PDF processing webhook');
+          }
+        } catch (webhookError) {
+          logger.warn('Error triggering processing webhook', { error: webhookError });
+          // Non-critical, so continue
+        }
+      } catch (queueError) {
+        logger.error('Failed to queue PDF processing', { error: queueError });
+        // Update product status to indicate queuing failed
+        await supabaseAdmin
+          .from('products')
+          .update({ status: 'queue_failed' })
+          .eq('id', productId);
+      }
+    }
+
     // Always return a success response if we've made it this far
     logger.info('Sending successful response to client');
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       productId,
       qrTextTag,
@@ -287,230 +310,8 @@ export async function POST(request: NextRequest) {
         ? 'Product created without PDF.' 
         : (uploadError 
           ? 'Product created but file upload failed. PDF processing skipped.' 
-          : 'Product created successfully. PDF processing has begun.')
+          : 'Product created successfully. PDF will be processed in the background.')
     }, { headers: corsHeaders });
-
-    // Only process PDF if upload was successful and a file was provided
-    if (!uploadError && file && !skipPdfCheck) {
-      // Process PDF asynchronously
-      (async () => {
-        logger.info('Starting asynchronous PDF processing', { memory: getMemoryUsage() });
-        try {
-          const pdfBuffer = Buffer.from(await file.arrayBuffer());
-          
-          try {
-            // Check available memory before PDF processing
-            logger.info('Before PDF processing', { memory: getMemoryUsage() });
-            
-            // Try to process the PDF with Mistral
-            const pdfChunks = await processPdfToChunks(pdfBuffer, file.name);
-            logger.info(`Processed PDF into chunks`, { 
-              count: pdfChunks.length,
-              memory: getMemoryUsage()
-            });
-            
-            if (pdfChunks.length === 0) {
-              throw new Error('No chunks were extracted from the PDF');
-            }
-            
-            let successfulChunks = 0;
-            
-            // Process chunks in batches to avoid memory issues
-            const chunkBatches = [];
-            const batchSize = 3; // Reduced from 5 to 3 to lower memory usage
-            
-            for (let i = 0; i < pdfChunks.length; i += batchSize) {
-              chunkBatches.push(pdfChunks.slice(i, i + batchSize));
-            }
-            
-            logger.info(`Split processing into batches`, { batchCount: chunkBatches.length });
-            
-            for (let batchIndex = 0; batchIndex < chunkBatches.length; batchIndex++) {
-              const batch = chunkBatches[batchIndex];
-              logger.info(`Processing batch`, { 
-                batchIndex: batchIndex + 1, 
-                totalBatches: chunkBatches.length,
-                memory: getMemoryUsage() 
-              });
-              
-              for (const chunk of batch) {
-                try {
-                  // Check if OpenAI API key is available
-                  if (!process.env.OPENAI_API_KEY) {
-                    logger.warn('OpenAI API key not available for embedding generation');
-                    await supabaseAdmin.from('pdf_chunks').insert({
-                      product_id: productId,
-                      chunk_hash: Buffer.from(chunk.content.substring(0, 100)).toString('base64'),
-                      content: chunk.content,
-                      token_start: 0,
-                      token_end: chunk.content.length,
-                      metadata: chunk.metadata
-                    });
-                    continue;
-                  }
-                  
-                  // Generate embedding using OpenAI
-                  logger.info('Generating embedding', { 
-                    contentLength: chunk.content.length,
-                    memory: getMemoryUsage()
-                  });
-                  
-                  const embeddingResponse = await openai.embeddings.create({
-                    model: "text-embedding-3-small",
-                    input: chunk.content,
-                  });
-                  
-                  // Get the embedding vector
-                  const embedding = embeddingResponse.data[0].embedding;
-                  
-                  // Calculate chunk hash
-                  const chunkHash = Buffer.from(chunk.content.substring(0, 100)).toString('base64');
-                  
-                  // Count tokens properly
-                  const tokenCount = countTokens(chunk.content);
-                  
-                  // Store chunk with embedding
-                  logger.info('Storing chunk with embedding', { tokenCount });
-                  const { error: insertError } = await supabaseAdmin.from('pdf_chunks').insert({
-                    product_id: productId,
-                    chunk_hash: chunkHash,
-                    content: chunk.content,
-                    embedding: embedding,
-                    token_start: 0,
-                    token_end: tokenCount,
-                    metadata: chunk.metadata
-                  });
-                  
-                  if (insertError) {
-                    logger.error(`Error storing chunk`, { error: insertError.message });
-                    continue;
-                  }
-                  
-                  successfulChunks++;
-                } catch (embeddingError) {
-                  logger.error('Error generating embedding', { 
-                    error: embeddingError,
-                    memory: getMemoryUsage()
-                  });
-                  
-                  // Store chunk without embedding if there's an error
-                  try {
-                    const chunkHash = Buffer.from(chunk.content.substring(0, 100)).toString('base64');
-                    await supabaseAdmin.from('pdf_chunks').insert({
-                      product_id: productId,
-                      chunk_hash: chunkHash,
-                      content: chunk.content,
-                      token_start: 0,
-                      token_end: chunk.content.length,
-                      metadata: chunk.metadata
-                    });
-                  } catch (insertError) {
-                    logger.error('Failed to store chunk without embedding', { error: insertError });
-                  }
-                }
-              }
-              
-              // Increased delay between batches to prevent overloading
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              
-              // Check memory usage after each batch
-              logger.info('Memory after batch processing', { memory: getMemoryUsage() });
-              
-              // Try to force garbage collection if available (Node.js only)
-              if (global.gc) {
-                logger.info('Running garbage collection');
-                global.gc();
-              }
-            }
-            
-            logger.info(`Chunk storage completed`, { 
-              successfulChunks, 
-              totalChunks: pdfChunks.length 
-            });
-            
-            // Update product status to ready
-            await supabaseAdmin
-              .from('products')
-              .update({ status: 'ready' })
-              .eq('id', productId);
-              
-            logger.info(`PDF processing completed`, { productId, memory: getMemoryUsage() });
-          } catch (pdfError: any) {
-            logger.error(`PDF processing error`, { 
-              error: pdfError.message,
-              stack: pdfError.stack,
-              memory: getMemoryUsage()
-            });
-            
-            // Store a single error chunk
-            const errorContent = `Unable to process PDF "${file.name}": ${pdfError.message || 'Unknown error'}`;
-            
-            try {
-              if (process.env.OPENAI_API_KEY) {
-                const embeddingResponse = await openai.embeddings.create({
-                  model: "text-embedding-3-small",
-                  input: errorContent,
-                });
-                
-                const errorChunkHash = Buffer.from(errorContent.substring(0, 100)).toString('base64');
-                const tokenCount = countTokens(errorContent);
-                
-                await supabaseAdmin.from('pdf_chunks').insert({
-                  product_id: productId,
-                  chunk_hash: errorChunkHash,
-                  content: errorContent,
-                  embedding: embeddingResponse.data[0].embedding,
-                  token_start: 0,
-                  token_end: tokenCount,
-                  metadata: { page: 0, section: 'Error' }
-                });
-              } else {
-                await supabaseAdmin.from('pdf_chunks').insert({
-                  product_id: productId,
-                  chunk_hash: Buffer.from(errorContent.substring(0, 100)).toString('base64'),
-                  content: errorContent,
-                  token_start: 0,
-                  token_end: errorContent.length,
-                  metadata: { page: 0, section: 'Error' }
-                });
-              }
-              
-              logger.info('Stored error information as a chunk');
-            } catch (embeddingError) {
-              logger.error('Error generating embedding for error message', { 
-                error: embeddingError,
-                memory: getMemoryUsage()
-              });
-            }
-            
-            // Update product status to indicate there was an issue
-            await supabaseAdmin
-              .from('products')
-              .update({ status: 'error' })
-              .eq('id', productId);
-          }
-        } catch (error) {
-          logger.error('Error in PDF processing', { 
-            error, 
-            memory: getMemoryUsage() 
-          });
-          
-          // Update product status to failed if there's an error
-          await supabaseAdmin
-            .from('products')
-            .update({ status: 'failed' })
-            .eq('id', productId);
-        }
-      })().catch(error => {
-        logger.error('Unhandled error in PDF processing', { 
-          error, 
-          stack: error.stack,
-          memory: getMemoryUsage()
-        });
-      });
-    }
-
-    return response;
     
   } catch (error) {
     return handleApiError(error, 'An unexpected error occurred in scan API');
