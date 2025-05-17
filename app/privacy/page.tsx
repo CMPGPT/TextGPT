@@ -242,7 +242,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-bold mb-4 text-textgpt-300">12. Contact Us</h2>
           <p className="mb-6">
-            If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at: textgpt.team@gmail.com<br />
+            If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at: info@textg.pt<br />
         
             </p>
             
