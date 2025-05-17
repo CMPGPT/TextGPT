@@ -38,6 +38,8 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
   const [retryCount, setRetryCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking'>('idle');
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
+  const [showPdfProcessingFailedDialog, setShowPdfProcessingFailedDialog] = useState(false);
+  const [productCreationData, setProductCreationData] = useState<any>(null);
 
   // Verify the API endpoint is available when component mounts but don't show loading
   useEffect(() => {
@@ -83,12 +85,32 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
     await submitForm();
   };
 
+  const handleContinueWithoutPdfProcessing = () => {
+    setShowPdfProcessingFailedDialog(false);
+    
+    // Handle the success case with the existing product data
+    if (productCreationData) {
+      setUploadProgress(100);
+      setSuccess(`Product "${productName}" created successfully with QR code for tag: ${productCreationData.qrTextTag}. Note: PDF processing was skipped.`);
+      
+      // Reset form
+      setProductName('');
+      setProductDescription('');
+      setSystemPrompt('');
+      setSelectedFile(null);
+      setLoading(false);
+      setRetryCount(0);
+      setProductCreationData(null);
+    }
+  };
+
   const submitForm = async () => {
     setError(null);
     setDetailedError(null);
     setSuccess(null);
     setLoading(true);
     setUploadProgress(0);
+    setProductCreationData(null);
 
     log('Form submitted', { 
       productName, 
@@ -165,23 +187,69 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         
         const result = await response.json();
         log('API response received', result);
+        setProductCreationData(result);
         
         // Simulate the rest of the process
-        setUploadProgress(80); // 80% after server processing starts
-        
-        // Poll for product status or just simulate completion after a delay
-        setTimeout(() => {
-          setUploadProgress(100);
-          setSuccess(`Product "${productName}" created successfully ${!selectedFile ? 'without PDF' : ''} with QR code for tag: ${result.qrTextTag}`);
-          
-          // Reset form
-          setProductName('');
-          setProductDescription('');
-          setSystemPrompt('');
-          setSelectedFile(null);
-          setLoading(false);
-          setRetryCount(0); // Reset retry count on success
-        }, 2000);
+        setUploadProgress(80);
+
+        // Check if we have a PDF to process
+        if (selectedFile) {
+          // Poll PDF processing status
+          try {
+            const checkProcessingStatus = async () => {
+              // Mock function to check PDF processing status based on product ID
+              const response = await fetch(`/api/iqr/process-pdf/status?productId=${result.productId}`, {
+                method: 'GET',
+              }).catch(() => {
+                // If the API doesn't exist or there's a network error, assume processing failure
+                return { ok: false, status: 500 };
+              });
+              
+              if (!response.ok) {
+                // PDF processing likely failed
+                log('PDF processing check failed', { status: response.status });
+                // Show the PDF processing failed dialog
+                setShowPdfProcessingFailedDialog(true);
+                setLoading(false);
+                return;
+              }
+              
+              // If we got a successful response, continue with success flow
+              setUploadProgress(100);
+              setSuccess(`Product "${productName}" created successfully with QR code for tag: ${result.qrTextTag}`);
+              
+              // Reset form
+              setProductName('');
+              setProductDescription('');
+              setSystemPrompt('');
+              setSelectedFile(null);
+              setLoading(false);
+              setRetryCount(0);
+            };
+            
+            // Wait a moment before checking status (simulating async processing)
+            setTimeout(checkProcessingStatus, 2000);
+          } catch (statusError) {
+            // Fallback - if status check fails, show the dialog
+            logError('processingCheck', statusError);
+            setShowPdfProcessingFailedDialog(true);
+            setLoading(false);
+          }
+        } else {
+          // No PDF, just finish normally
+          setTimeout(() => {
+            setUploadProgress(100);
+            setSuccess(`Product "${productName}" created successfully without PDF with QR code for tag: ${result.qrTextTag}`);
+            
+            // Reset form
+            setProductName('');
+            setProductDescription('');
+            setSystemPrompt('');
+            setSelectedFile(null);
+            setLoading(false);
+            setRetryCount(0); // Reset retry count on success
+          }, 2000);
+        }
       } catch (apiError: any) {
         logError('apiCall', apiError);
         throw apiError;
@@ -402,6 +470,30 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
               onClick={handleSubmitWithoutPdf}
             >
               Create Without PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Processing Failed Dialog */}
+      <Dialog open={showPdfProcessingFailedDialog} onOpenChange={setShowPdfProcessingFailedDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>PDF Processing Issue</DialogTitle>
+            <DialogDescription>
+              Your product and QR code were created successfully, but we encountered an issue processing the PDF document.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 text-sm text-muted-foreground">
+            <p>The product has been created and is ready to use, but the PDF content won't be available for AI responses.</p>
+            <p className="mt-2">You can continue without PDF processing or try uploading the PDF again later.</p>
+          </div>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button 
+              className="bg-iqr-200 text-black hover:bg-iqr-200/80"
+              onClick={handleContinueWithoutPdfProcessing}
+            >
+              Continue
             </Button>
           </DialogFooter>
         </DialogContent>

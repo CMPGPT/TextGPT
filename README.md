@@ -9,11 +9,9 @@ TextGPT is a platform that offers two main services:
 
 - User authentication and account management
 - Subscription plans for different service tiers
-- PDF and content upload functionality
 - QR code generation and management
 - Chat interfaces for user interactions
 - SMS integration capabilities
-- Document extraction using Mistral AI
 
 ## Environment Setup (Important for Deployment)
 
@@ -26,24 +24,11 @@ This application requires several environment variables to function correctly. F
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
 
-# Supabase Configuration (Project ID: zxagqatfzsfpqhaapusj)
-NEXT_PUBLIC_SUPABASE_URL=https://zxagqatfzsfpqhaapusj.supabase.co
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
-
-# Mistral AI Configuration
-MISTRAL_API_KEY=your_mistral_api_key_here
 ```
-
-## Document Processing
-
-TextGPT uses Mistral AI's document extraction API for processing PDF files. The system extracts text from PDF documents and stores it in Supabase for later retrieval during chat sessions.
-
-Key features of the document processing system:
-- OCR support for scanned document text extraction
-- Page-aware text chunking for better context retention
-- Robust error handling with automatic retries
-- Integration with OpenAI embeddings for semantic search
 
 ## Getting Started
 
@@ -93,11 +78,12 @@ vercel
 
 ## Technology Stack
 
-- Next.js for frontend and API routes
+- Next.js 14+ for frontend and API routes
 - Supabase for database and authentication
 - OpenAI for chat functionality
 - Stripe for subscription management
-- Firebase for additional features
+- TailwindCSS for styling
+- Radix UI for accessible components
 
 ## Project Structure
 

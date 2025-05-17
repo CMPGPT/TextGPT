@@ -82,19 +82,14 @@ export async function POST(request: NextRequest) {
       return handleApiError(error, 'Failed to parse form data');
     }
 
-    const file = formData.get('file') as File | null;
     const businessId = formData.get('businessId') as string;
     const productName = formData.get('productName') as string;
     const productDescription = formData.get('productDescription') as string;
     const systemPrompt = formData.get('systemPrompt') as string;
-    const skipPdfCheck = formData.get('skipPdfCheck') === 'true' || !file;
 
     logger.info('Request parameters', { 
       businessId, 
       productName, 
-      hasFile: !!file, 
-      skipPdfCheck,
-      fileType: file?.type,
       memory: getMemoryUsage()
     });
 
@@ -106,77 +101,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate the file is a PDF if it exists
-    if (file && !file.type.includes('pdf')) {
-      logger.warn(`Invalid file type: ${file.type}`);
-      return NextResponse.json(
-        { error: 'Uploaded file must be a PDF' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
     // Generate unique IDs
     const productId = uuidv4();
     const qrTextTag = `iqr_${productName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-6)}`;
     logger.info('Generated IDs', { productId, qrTextTag });
 
-    // Variables for file processing
-    let uploadError = null;
-    let publicUrl = '';
-    
-    // Only process file upload if a file was provided
-    if (file && !skipPdfCheck) {
-      // 1. Upload file to Supabase Storage
-      try {
-        const fileBuffer = await file.arrayBuffer();
-        logger.info(`Processing PDF file`, { 
-          name: file.name, 
-          size: `${Math.round(fileBuffer.byteLength / 1024)}KB`,
-          memory: getMemoryUsage()
-        });
-      
-        // Use a simpler approach for storage buckets to reduce potential issues
-        const bucketName = 'iqr-pdfs';
-        const filePath = `pdfs/${businessId}/${productId}/${file.name}`;
-        
-        logger.info(`Using storage bucket`, { bucketName, filePath });
-        
-        try {
-          logger.info(`Uploading file`, { bucketName, filePath });
-          const { data: _uploadData, error } = await supabaseAdmin.storage
-            .from(bucketName)
-            .upload(filePath, fileBuffer, {
-              contentType: file.type,
-              upsert: true,
-            });
-          
-          uploadError = error;
-          
-          if (!error) {
-            logger.info('File upload successful');
-            const { data } = supabaseAdmin.storage
-              .from(bucketName)
-              .getPublicUrl(filePath);
-            
-            publicUrl = data.publicUrl;
-            logger.info(`Generated public URL`, { publicUrl });
-          } else {
-            logger.error(`Storage upload error`, { message: error.message });
-          }
-        } catch (error) {
-          logger.error('Error during file upload', { error, memory: getMemoryUsage() });
-          uploadError = error;
-        }
-      } catch (fileError) {
-        logger.error('Error reading file buffer', { error: fileError, memory: getMemoryUsage() });
-        uploadError = fileError;
-      }
-    } else {
-      logger.info('No file provided or PDF check skipped');
-      publicUrl = '';
-    }
-
-    // 2. Create product entry regardless of upload success
+    // Create product entry
     let productError = null;
     
     try {
@@ -189,9 +119,8 @@ export async function POST(request: NextRequest) {
           name: productName,
           description: productDescription || null,
           system_prompt: systemPrompt || null,
-          pdf_url: publicUrl || null,
           qr_text_tag: qrTextTag,
-          status: skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'processing')
+          status: 'ready'
         });
       
       productError = error;
@@ -225,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     logger.info(`Generated chat URL`, { chatUrl });
 
-    // 3. Create default QR code with dynamic URL
+    // Create default QR code with dynamic URL
     let qrCreated = false;
     
     try {
@@ -248,48 +177,6 @@ export async function POST(request: NextRequest) {
       logger.error('Error creating QR code', { error, memory: getMemoryUsage() });
     }
 
-    // 4. Queue PDF processing in background worker only if PDF was provided
-    if (!uploadError && file && !skipPdfCheck && publicUrl) {
-      try {
-        // Create an entry in a processing queue to be picked up by a background worker
-        const { data: queueItem } = await supabaseAdmin
-          .from('processing_queue')
-          .insert({
-            product_id: productId,
-            status: 'queued',
-            file_path: publicUrl,
-            created_at: new Date().toISOString()
-          })
-          .select('id')
-          .single();
-          
-        logger.info('Added PDF to processing queue', { productId });
-        
-        // Process PDF directly but asynchronously
-        if (queueItem?.id) {
-          try {
-            // Import the processing function
-            const { processPdf } = await import('../process-pdf/processPdfUtil');
-            
-            // Process in background without awaiting to avoid timeout
-            processPdf(productId, publicUrl, queueItem.id)
-              .catch((error: Error) => logger.warn('Failed to process PDF in background', { error }));
-              
-            logger.info('Started PDF processing in background');
-          } catch (importError) {
-            logger.error('Failed to import processPdf utility', { error: importError });
-          }
-        }
-      } catch (queueError) {
-        logger.error('Failed to queue PDF processing', { error: queueError });
-        // Update product status to indicate queuing failed
-        await supabaseAdmin
-          .from('products')
-          .update({ status: 'failed' })
-          .eq('id', productId);
-      }
-    }
-
     // Always return a success response if we've made it this far
     logger.info('Sending successful response to client');
     return NextResponse.json({
@@ -297,13 +184,7 @@ export async function POST(request: NextRequest) {
       productId,
       qrTextTag,
       qrCreated,
-      uploadSuccess: !uploadError && !!file,
-      skipPdfCheck: skipPdfCheck,
-      message: skipPdfCheck 
-        ? 'Product created without PDF.' 
-        : (uploadError 
-          ? 'Product created but file upload failed. PDF processing skipped.' 
-          : 'Product created successfully. PDF will be processed in the background.')
+      message: 'Product and QR code created successfully.'
     }, { headers: corsHeaders });
     
   } catch (error) {
