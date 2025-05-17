@@ -9,7 +9,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 
 // Enhanced console logging with context
 const log = (message: string, data?: any) => {
@@ -39,8 +38,6 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
   const [retryCount, setRetryCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking'>('idle');
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
-  const [skipPdfUpload, setSkipPdfUpload] = useState(false);
-  const [attemptedWithoutPdf, setAttemptedWithoutPdf] = useState(false);
 
   // Verify the API endpoint is available when component mounts but don't show loading
   useEffect(() => {
@@ -83,12 +80,10 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
 
   const handleSubmitWithoutPdf = async () => {
     setShowFallbackDialog(false);
-    setSkipPdfUpload(true);
-    setAttemptedWithoutPdf(true);
-    await submitForm(true);
+    await submitForm();
   };
 
-  const submitForm = async (skipPdf = false) => {
+  const submitForm = async () => {
     setError(null);
     setDetailedError(null);
     setSuccess(null);
@@ -98,8 +93,6 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
     log('Form submitted', { 
       productName, 
       fileSelected: !!selectedFile,
-      skipPdf,
-      attemptedWithoutPdf,
       businessId,
       retryCount 
     });
@@ -109,20 +102,16 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         throw new Error('Product name is required');
       }
 
-      if (!skipPdf && !selectedFile) {
-        throw new Error('PDF file is required or choose to create without PDF');
-      }
-
       // Create FormData for API request
       const formData = new FormData();
-      if (selectedFile && !skipPdf) {
+      if (selectedFile) {
         formData.append('file', selectedFile);
       }
       formData.append('businessId', businessId);
       formData.append('productName', productName);
       formData.append('productDescription', productDescription || '');
       formData.append('systemPrompt', systemPrompt || '');
-      formData.append('skipPdfCheck', skipPdf ? 'true' : 'false');
+      formData.append('skipPdfCheck', selectedFile ? 'false' : 'true');
 
       // Use the fetch API with better error handling
       try {
@@ -136,8 +125,8 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         const apiUrl = `${baseUrl}/api/iqr/scan`;
         log(`Making request to absolute URL: ${apiUrl}`);
         
-        // If skipping PDF, simulate progress
-        if (skipPdf) {
+        // If no PDF, simulate progress
+        if (!selectedFile) {
           setUploadProgress(50);
         }
         
@@ -164,8 +153,8 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
             data: errorData
           });
           
-          // Only show fallback dialog for 405 errors and only if we haven't already tried without PDF
-          if (errorStatus === 405 && !skipPdf && !attemptedWithoutPdf) {
+          // Only show fallback dialog for 405 errors
+          if (errorStatus === 405) {
             setShowFallbackDialog(true);
             setLoading(false);
             return; // Exit early to prevent throwing the error
@@ -183,7 +172,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         // Poll for product status or just simulate completion after a delay
         setTimeout(() => {
           setUploadProgress(100);
-          setSuccess(`Product "${productName}" created successfully ${result.skipPdfCheck ? 'without PDF' : ''} with QR code for tag: ${result.qrTextTag}`);
+          setSuccess(`Product "${productName}" created successfully ${!selectedFile ? 'without PDF' : ''} with QR code for tag: ${result.qrTextTag}`);
           
           // Reset form
           setProductName('');
@@ -192,8 +181,6 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
           setSelectedFile(null);
           setLoading(false);
           setRetryCount(0); // Reset retry count on success
-          setSkipPdfUpload(false); // Reset skip PDF flag
-          setAttemptedWithoutPdf(false); // Reset attempted flag
         }, 2000);
       } catch (apiError: any) {
         logError('apiCall', apiError);
@@ -204,34 +191,20 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       logError('formSubmission', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setLoading(false);
-      
-      // If we're seeing an error even after trying without PDF, reset the attempted flag
-      // so user can try again if needed
-      if (skipPdf && attemptedWithoutPdf) {
-        setAttemptedWithoutPdf(false);
-      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    submitForm(skipPdfUpload);
+    submitForm();
   };
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
     setError(null);
     setDetailedError(null);
-    setAttemptedWithoutPdf(false);
     log('Retrying submission', { retryCount: retryCount + 1 });
     handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-  };
-
-  const handleSkipPdfChange = (checked: boolean) => {
-    setSkipPdfUpload(checked);
-    if (checked) {
-      setSelectedFile(null);
-    }
   };
 
   return (
@@ -239,7 +212,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       <div>
         <h2 className="text-xl font-semibold mb-1">Create New Product</h2>
         <p className="text-muted-foreground text-sm">
-          Upload a product PDF and create a product with QR code for customers to access information.
+          Create a product with QR code for customers to access information. PDF documentation is optional.
         </p>
       </div>
       
@@ -308,7 +281,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
             <Label htmlFor="fileUpload" className="flex items-center justify-between">
               <span>Product Documentation (PDF)</span>
               <div className="text-xs text-muted-foreground">
-                {skipPdfUpload ? '(Optional)' : '(Required)'}
+                (Optional)
               </div>
             </Label>
             <div className="flex items-center gap-2">
@@ -317,24 +290,9 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
                 type="file"
                 accept=".pdf"
                 onChange={handleFileChange}
-                disabled={loading || skipPdfUpload}
-                className="file:bg-iqr-200 file:text-black file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
-                required={!skipPdfUpload}
-              />
-            </div>
-            <div className="flex items-center space-x-2 mt-1">
-              <Checkbox 
-                id="skipPdf" 
-                checked={skipPdfUpload}
-                onCheckedChange={(checked) => handleSkipPdfChange(checked === true)}
                 disabled={loading}
+                className="file:bg-iqr-200 file:text-black file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
               />
-              <label
-                htmlFor="skipPdf"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Create without PDF document
-              </label>
             </div>
           </div>
         </div>
@@ -372,7 +330,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
           <div className="space-y-2">
             <div className="text-sm flex justify-between text-muted-foreground mb-1">
               <span>
-                {skipPdfUpload 
+                {!selectedFile 
                   ? (uploadProgress < 80 
                       ? 'Creating product...' 
                       : 'Generating QR code...')

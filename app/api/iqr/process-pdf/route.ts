@@ -82,6 +82,36 @@ export async function GET(request: NextRequest) {
       // This prevents running out of execution time on Vercel
       const item = queuedItems[0];
       
+      // Check if there's actually a file path to process
+      if (!item.file_path || item.file_path.trim() === '') {
+        logger.info(`Item ${item.id} has no file path, marking as completed without processing`, { productId: item.product_id });
+        
+        // Update queue item to completed
+        await supabaseAdmin
+          .from('processing_queue')
+          .update({ 
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            notes: 'PDF processing skipped - no file provided'
+          })
+          .eq('id', item.id);
+        
+        // Set product status to ready
+        await supabaseAdmin
+          .from('products')
+          .update({ status: 'ready' })
+          .eq('id', item.product_id);
+        
+        return NextResponse.json(
+          { 
+            message: 'Skipped processing item with no file path', 
+            itemId: item.id,
+            productId: item.product_id
+          },
+          { status: 200, headers: corsHeaders }
+        );
+      }
+      
       // Update status to processing
       await supabaseAdmin
         .from('processing_queue')
@@ -231,6 +261,28 @@ async function processPdf(productId: string, filePath: string, queueItemId: stri
   logger.info('Processing PDF in background', { productId, queueItemId });
   
   try {
+    // Verify if the filePath is a valid URL
+    if (!filePath || filePath.trim() === '') {
+      logger.info('No file path provided, skipping PDF processing', { productId });
+      
+      // Update product status to ready since there's no PDF to process
+      await supabaseAdmin
+        .from('products')
+        .update({ status: 'ready' })
+        .eq('id', productId);
+        
+      await supabaseAdmin
+        .from('processing_queue')
+        .update({ 
+          status: 'completed', 
+          completed_at: new Date().toISOString(),
+          notes: 'PDF processing skipped - no file provided'
+        })
+        .eq('id', queueItemId);
+        
+      return;
+    }
+    
     // Fetch file from URL
     let fileResponse;
     try {
@@ -421,6 +473,17 @@ export async function POST(request: NextRequest) {
     if (!productId || !filePath) {
       return NextResponse.json(
         { error: 'Missing required fields: productId, filePath' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Check if the filePath is a valid URL
+    try {
+      new URL(filePath);
+    } catch (_e) {
+      logger.warn('Invalid file path URL provided', { filePath });
+      return NextResponse.json(
+        { error: 'Invalid file path URL' },
         { status: 400, headers: corsHeaders }
       );
     }

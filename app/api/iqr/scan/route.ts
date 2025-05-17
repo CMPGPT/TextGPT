@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
-  import { getLogger } from '@/utils/logger';
+import { getLogger } from '@/utils/logger';
 
 // Initialize logger
 const logger = getLogger('api:iqr:scan');
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     const productName = formData.get('productName') as string;
     const productDescription = formData.get('productDescription') as string;
     const systemPrompt = formData.get('systemPrompt') as string;
-    const skipPdfCheck = formData.get('skipPdfCheck') === 'true';
+    const skipPdfCheck = formData.get('skipPdfCheck') === 'true' || !file;
 
     logger.info('Request parameters', { 
       businessId, 
@@ -106,17 +106,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for file only if skipPdfCheck is false
-    if (!skipPdfCheck && !file) {
-      logger.warn('Missing required file');
-      return NextResponse.json(
-        { error: 'Missing required file' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
     // Validate the file is a PDF if it exists
-    if (file && !file.type.includes('pdf') && !skipPdfCheck) {
+    if (file && !file.type.includes('pdf')) {
       logger.warn(`Invalid file type: ${file.type}`);
       return NextResponse.json(
         { error: 'Uploaded file must be a PDF' },
@@ -182,7 +173,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       logger.info('No file provided or PDF check skipped');
-      publicUrl = `https://placeholder-for-no-upload/${businessId}/${productId}/no-file`;
+      publicUrl = '';
     }
 
     // 2. Create product entry regardless of upload success
@@ -200,7 +191,7 @@ export async function POST(request: NextRequest) {
           system_prompt: systemPrompt || null,
           pdf_url: publicUrl || null,
           qr_text_tag: qrTextTag,
-          status: !file || skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'pending_processing')
+          status: skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'pending_processing')
         });
       
       productError = error;
@@ -257,8 +248,8 @@ export async function POST(request: NextRequest) {
       logger.error('Error creating QR code', { error, memory: getMemoryUsage() });
     }
 
-    // 4. Queue PDF processing in background worker instead of processing directly
-    if (!uploadError && file && !skipPdfCheck) {
+    // 4. Queue PDF processing in background worker only if PDF was provided
+    if (!uploadError && file && !skipPdfCheck && publicUrl) {
       try {
         // Create an entry in a processing queue to be picked up by a background worker
         await supabaseAdmin
@@ -306,7 +297,7 @@ export async function POST(request: NextRequest) {
       qrCreated,
       uploadSuccess: !uploadError && !!file,
       skipPdfCheck: skipPdfCheck,
-      message: !file || skipPdfCheck 
+      message: skipPdfCheck 
         ? 'Product created without PDF.' 
         : (uploadError 
           ? 'Product created but file upload failed. PDF processing skipped.' 
