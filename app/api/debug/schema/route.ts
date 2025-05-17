@@ -1,46 +1,67 @@
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+import { getLogger } from '@/utils/logger';
 
-export async function GET() {
-  const supabase = createClient();
+const logger = getLogger('api:debug:schema');
+
+// Utility function to fetch Supabase table info
+async function getTableInfo(supabase: any, tableName: string) {
+  try {
+    const { data, error } = await supabase
+      .from('information_schema.columns')
+      .select('column_name, data_type, is_nullable')
+      .eq('table_name', tableName);
+    
+    if (error) throw error;
+    return { table: tableName, columns: data };
+  } catch (error) {
+    logger.error(`Error fetching table info for ${tableName}`, { error });
+    return { table: tableName, error: 'Failed to fetch table info' };
+  }
+}
+
+// Utility function to fetch constraint info
+async function getConstraintInfo(supabase: any, tableName: string) {
+  try {
+    const { data, error } = await supabase.query(`
+      SELECT con.conname AS constraint_name,
+             con.contype AS constraint_type,
+             pg_get_constraintdef(con.oid) AS constraint_definition
+      FROM pg_constraint con
+      JOIN pg_class rel ON rel.oid = con.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      WHERE rel.relname = '${tableName}'
+      AND nsp.nspname = 'public'
+    `);
+    
+    if (error) throw error;
+    return { table: tableName, constraints: data };
+  } catch (error) {
+    logger.error(`Error fetching constraint info for ${tableName}`, { error });
+    return { table: tableName, error: 'Failed to fetch constraint info' };
+  }
+}
+
+export async function GET(request: NextRequest) {
+  logger.info('Schema debug request received');
+  
+  const supabase = supabaseAdmin;
+  const tables = ['products', 'qr_codes', 'businesses', 'pdf_chunks', 'processing_queue'];
   
   try {
-    // Get the column definitions for the iqr_users table
-    const { data: columns, error: columnsError } = await supabase
-      .from('iqr_users')
-      .select('*')
-      .limit(0);
-      
-    if (columnsError) {
-      return NextResponse.json(
-        { error: 'Error fetching columns', details: columnsError },
-        { status: 500 }
-      );
-    }
-    
-    // Get the table info from information_schema
-    const { data: tableInfo, error: tableError } = await supabase
-      .rpc('get_table_definition', { table_name: 'iqr_users' });
-      
-    if (tableError) {
-      return NextResponse.json(
-        { 
-          error: 'Error fetching table info', 
-          details: tableError,
-          columns: columns
-        },
-        { status: 500 }
-      );
-    }
+    const tableInfo = await Promise.all(tables.map(table => getTableInfo(supabase, table)));
+    const constraintInfo = await Promise.all(tables.map(table => getConstraintInfo(supabase, table)));
     
     return NextResponse.json({
-      message: 'Schema information retrieved successfully',
-      table_info: tableInfo,
-      api_schema_columns: columns
+      message: 'Schema debug information',
+      tables: tableInfo,
+      constraints: constraintInfo,
+      fixUrl: `${request.nextUrl.origin}/api/iqr/setup-migration`
     });
   } catch (error) {
+    logger.error('Error in schema debug', { error });
     return NextResponse.json(
-      { error: 'Unexpected error', details: error },
+      { error: 'Failed to get schema information' },
       { status: 500 }
     );
   }

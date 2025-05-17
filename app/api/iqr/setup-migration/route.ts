@@ -13,9 +13,88 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-// OPTIONS handler for CORS
+// Add OPTIONS method handler for CORS preflight requests
 export async function OPTIONS() {
-  return NextResponse.json({}, { status: 200, headers: corsHeaders });
+  logger.info('OPTIONS request received');
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
+// Add GET method to run the migration
+export async function GET() {
+  logger.info('GET request received for migration setup');
+  try {
+    // Run the same migration logic as the POST handler
+    if (!supabaseAdmin || typeof supabaseAdmin.from !== 'function') {
+      logger.error('Supabase client initialization failed');
+      return NextResponse.json(
+        { error: 'Database connection error.', details: 'Supabase client initialization failed' },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    // Create or check for the processing_queue table
+    try {
+      await supabaseAdmin.query(`
+        CREATE TABLE IF NOT EXISTS processing_queue (
+          id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          product_id UUID REFERENCES products(id),
+          status TEXT NOT NULL DEFAULT 'queued',
+          file_path TEXT,
+          process_start TIMESTAMP WITH TIME ZONE,
+          process_end TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+          error TEXT
+        );
+      `);
+      
+      logger.info('Created or verified processing_queue table');
+    } catch (tableError) {
+      logger.error('Failed to create processing_queue table', { 
+        error: tableError instanceof Error ? tableError.message : String(tableError) 
+      });
+      return NextResponse.json(
+        { error: 'Failed to create processing queue table', details: tableError instanceof Error ? tableError.message : String(tableError) },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+  
+    // Update products.status check constraint to include the new status values
+    try {
+      await supabaseAdmin.query(`
+        -- First drop the existing check constraint
+        ALTER TABLE products DROP CONSTRAINT IF EXISTS products_status_check;
+        
+        -- Then add a new check constraint with all the needed values
+        ALTER TABLE products ADD CONSTRAINT products_status_check 
+          CHECK (status = ANY (ARRAY['processing'::text, 'ready'::text, 'failed'::text, 'error'::text, 'pending_processing'::text, 'queue_failed'::text]));
+      `);
+      
+      logger.info('Updated products table status check constraint');
+    } catch (enumError) {
+      logger.error('Failed to update product status check constraint', { 
+        error: enumError instanceof Error ? enumError.message : String(enumError) 
+      });
+      // Continue as this might be a permissions issue but the table still works
+    }
+
+    return NextResponse.json(
+      { success: true, message: 'Migration setup completed successfully' },
+      { status: 200, headers: corsHeaders }
+    );
+  } catch (error) {
+    logger.error('Error in migration setup', { 
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return NextResponse.json(
+      { error: 'Failed to set up migration', details: error instanceof Error ? error.message : String(error) },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
 
 // POST handler to run the migration
@@ -69,32 +148,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Add 'pending_processing' status to the products table enum if needed
+    // Update products.status check constraint to include the new status values
     try {
       await supabaseAdmin.query(`
-        DO $$ 
-        BEGIN 
-          IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace 
-                        WHERE t.typname = 'product_status_enum') THEN
-            CREATE TYPE product_status_enum AS ENUM ('draft', 'processing', 'ready', 'error', 'failed', 'pending_processing', 'queue_failed');
-          ELSE 
-            BEGIN
-              ALTER TYPE product_status_enum ADD VALUE IF NOT EXISTS 'pending_processing';
-              ALTER TYPE product_status_enum ADD VALUE IF NOT EXISTS 'queue_failed';
-              EXCEPTION WHEN duplicate_object THEN NULL;
-            END;
-          END IF;
-        END $$;
+        -- First drop the existing check constraint
+        ALTER TABLE products DROP CONSTRAINT IF EXISTS products_status_check;
         
-        -- Ensure products.status is using the enum type
-        ALTER TABLE products 
-          ALTER COLUMN status TYPE product_status_enum 
-          USING status::product_status_enum;
+        -- Then add a new check constraint with all the needed values
+        ALTER TABLE products ADD CONSTRAINT products_status_check 
+          CHECK (status = ANY (ARRAY['processing'::text, 'ready'::text, 'failed'::text, 'error'::text, 'pending_processing'::text, 'queue_failed'::text]));
       `);
       
-      logger.info('Updated products table status enum');
+      logger.info('Updated products table status check constraint');
     } catch (enumError) {
-      logger.error('Failed to update product status enum', { 
+      logger.error('Failed to update product status check constraint', { 
         error: enumError instanceof Error ? enumError.message : String(enumError) 
       });
       // Continue as this might be a permissions issue but the table still works

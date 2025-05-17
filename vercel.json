@@ -29,11 +29,5 @@
   ],
   "env": {
     "ENABLE_DB_LOGGING": "true"
-  },
-  "crons": [
-    {
-      "path": "/api/iqr/process-pdf?cron=true",
-      "schedule": "*/15 * * * *" 
-    }
-  ]
+  }
 } 

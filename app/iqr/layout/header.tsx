@@ -243,6 +243,12 @@ export const Header = () => {
                     )}
                 </div>
                 
+                <Link href="/iqr/dashboard/pdf-processing">
+                    <Button className="bg-iqr-300 text-iqr-50 hover:bg-iqr-300/90 px-2 md:px-4 mr-2">
+                        <span className="hidden md:inline">PDF Manager</span>
+                    </Button>
+                </Link>
+                
                 <Link href="/iqr/chat">
                     <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-2 md:px-4">
                         <MessageSquare size={18} className="mr-0 md:mr-2" />

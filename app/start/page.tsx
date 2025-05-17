@@ -250,7 +250,7 @@ export default function StartPage() {
               <Link href="/opt-in" className="text-white/70 hover:text-white transition-colors">
                 Opt-In Process
               </Link>
-              <a href="mailto:support@textgpt.com" className="text-white/70 hover:text-white transition-colors">
+              <a href="mailto:info@textg.pt" className="text-white/70 hover:text-white transition-colors">
                 Contact Us
               </a>
             </div>

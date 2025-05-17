@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
           system_prompt: systemPrompt || null,
           pdf_url: publicUrl || null,
           qr_text_tag: qrTextTag,
-          status: skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'pending_processing')
+          status: skipPdfCheck ? 'ready' : (uploadError ? 'error' : 'processing')
         });
       
       productError = error;
@@ -252,38 +252,40 @@ export async function POST(request: NextRequest) {
     if (!uploadError && file && !skipPdfCheck && publicUrl) {
       try {
         // Create an entry in a processing queue to be picked up by a background worker
-        await supabaseAdmin
+        const { data: queueItem } = await supabaseAdmin
           .from('processing_queue')
           .insert({
             product_id: productId,
             status: 'queued',
             file_path: publicUrl,
             created_at: new Date().toISOString()
-          });
+          })
+          .select('id')
+          .single();
           
         logger.info('Added PDF to processing queue', { productId });
         
-        // Trigger background processing via a webhook if available
-        try {
-          const webhookUrl = process.env.PDF_PROCESSING_WEBHOOK_URL;
-          if (webhookUrl) {
-            fetch(webhookUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ productId, filePath: publicUrl })
-            }).catch(e => logger.warn('Failed to trigger processing webhook', { error: e }));
-            logger.info('Triggered PDF processing webhook');
+        // Process PDF directly but asynchronously
+        if (queueItem?.id) {
+          try {
+            // Import the processing function
+            const { processPdf } = await import('../process-pdf/processPdfUtil');
+            
+            // Process in background without awaiting to avoid timeout
+            processPdf(productId, publicUrl, queueItem.id)
+              .catch((error: Error) => logger.warn('Failed to process PDF in background', { error }));
+              
+            logger.info('Started PDF processing in background');
+          } catch (importError) {
+            logger.error('Failed to import processPdf utility', { error: importError });
           }
-        } catch (webhookError) {
-          logger.warn('Error triggering processing webhook', { error: webhookError });
-          // Non-critical, so continue
         }
       } catch (queueError) {
         logger.error('Failed to queue PDF processing', { error: queueError });
         // Update product status to indicate queuing failed
         await supabaseAdmin
           .from('products')
-          .update({ status: 'queue_failed' })
+          .update({ status: 'failed' })
           .eq('id', productId);
       }
     }
