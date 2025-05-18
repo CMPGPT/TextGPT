@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.812.0",
+    "@aws-sdk/lib-storage": "^3.812.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@hookform/resolvers": "^5.0.1",
@@ -70,6 +72,7 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@types/aws-sdk": "^0.0.42",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^20.11.19",
     "@types/react": "^18.2.55",

@@ -86,10 +86,14 @@ export async function POST(request: NextRequest) {
     const productName = formData.get('productName') as string;
     const productDescription = formData.get('productDescription') as string;
     const systemPrompt = formData.get('systemPrompt') as string;
+    const file = formData.get('file') as File;
+    const skipPdfCheck = formData.get('skipPdfCheck') === 'true';
 
     logger.info('Request parameters', { 
       businessId, 
       productName, 
+      hasFile: !!file,
+      skipPdfCheck,
       memory: getMemoryUsage()
     });
 
@@ -142,6 +146,83 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Upload PDF if provided
+    let pdfUrl = null;
+    let pdfPath = null;
+
+    if (file && !skipPdfCheck) {
+      try {
+        // Check file type
+        if (!file.type.includes('pdf')) {
+          logger.warn('Invalid file type', { fileType: file.type });
+          return NextResponse.json(
+            { error: 'Only PDF files are allowed' },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        // Check file size (max 10MB)
+        const maxSizeMB = 10;
+        const maxSizeBytes = maxSizeMB * 1024 * 1024;
+        if (file.size > maxSizeBytes) {
+          logger.warn('File too large', { size: file.size, maxSize: maxSizeBytes });
+          return NextResponse.json(
+            { error: `File size exceeds maximum of ${maxSizeMB}MB` },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        // Generate a unique file name
+        const fileId = uuidv4();
+        const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        pdfPath = `products/${productId}/${fileId}_${fileName}`;
+
+        // Get the file buffer
+        const arrayBuffer = await file.arrayBuffer();
+        const fileBuffer = Buffer.from(arrayBuffer);
+
+        // Upload to Supabase Storage
+        logger.info('Uploading file to Supabase Storage', { pdfPath });
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('product-pdfs')
+          .upload(pdfPath, fileBuffer, {
+            contentType: file.type,
+            upsert: true
+          });
+
+        if (uploadError) {
+          logger.error('File upload failed', { error: uploadError });
+          // Continue without PDF as we've already created the product
+        } else {
+          // Get public URL
+          const { data: urlData } = supabaseAdmin.storage
+            .from('product-pdfs')
+            .getPublicUrl(pdfPath);
+
+          pdfUrl = urlData.publicUrl;
+          
+          // Update product with PDF URL
+          const { error: updateError } = await supabaseAdmin
+            .from('products')
+            .update({
+              pdf_url: pdfUrl,
+              pdf_path: pdfPath
+            })
+            .eq('id', productId);
+
+          if (updateError) {
+            logger.error('Failed to update product with PDF URL', { error: updateError });
+            // Continue anyway, the PDF was uploaded
+          }
+          
+          logger.info('PDF uploaded and linked to product', { productId, pdfUrl });
+        }
+      } catch (uploadError) {
+        logger.error('Error processing PDF upload', { error: uploadError, memory: getMemoryUsage() });
+        // Continue without PDF as we've already created the product
+      }
+    }
+
     // Determine the base URL based on environment
     const isProduction = process.env.NODE_ENV === 'production';
     const baseUrl = isProduction 
@@ -184,6 +265,8 @@ export async function POST(request: NextRequest) {
       productId,
       qrTextTag,
       qrCreated,
+      pdfUploaded: !!pdfUrl,
+      pdfUrl,
       message: 'Product and QR code created successfully.'
     }, { headers: corsHeaders });
     

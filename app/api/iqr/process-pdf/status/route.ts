@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLogger } from '@/utils/logger';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Initialize logger
 const logger = getLogger('api:iqr:process-pdf:status');
@@ -35,30 +36,103 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // This is a simplified implementation that simulates checking the PDF processing status
-  // In a real implementation, we would query a database or service to check the actual status
-  // For our purposes, we'll simulate a check that always fails to trigger our dialog
-  
-  // Simulate that PDF processing has failed (this triggers our dialog)
-  logger.warn('Simulating PDF processing failure for product', { productId });
-  
-  return NextResponse.json(
-    { 
-      status: 'failed', 
-      error: 'PDF processing failed: Missing tiktoken_bg.wasm',
-      productId
-    },
-    { status: 500, headers: corsHeaders }
-  );
-  
-  // If we wanted to simulate a success, we would return a 200 response:
-  /*
-  return NextResponse.json(
-    { 
-      status: 'completed', 
-      productId
-    },
-    { status: 200, headers: corsHeaders }
-  );
-  */
+  try {
+    // Fetch the product from the database
+    const { data: product, error } = await supabaseAdmin
+      .from('products')
+      .select('id, pdf_url, pdf_path, status')
+      .eq('id', productId)
+      .single();
+
+    if (error) {
+      logger.error('Error fetching product', { error: error.message, productId });
+      return NextResponse.json(
+        { error: 'Failed to fetch product status', message: error.message },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    if (!product) {
+      logger.warn('Product not found', { productId });
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    // Check if the product has a PDF associated with it
+    if (!product.pdf_url || !product.pdf_path) {
+      logger.info('Product has no PDF associated', { productId });
+      return NextResponse.json(
+        { 
+          status: 'no_pdf', 
+          message: 'No PDF associated with this product',
+          productId
+        },
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
+    // Check if the file exists in Supabase storage
+    try {
+      // Try to get the file metadata from storage
+      const { data: fileData, error: fileError } = await supabaseAdmin.storage
+        .from('product-pdfs')
+        .getPublicUrl(product.pdf_path);
+
+      if (fileError) {
+        logger.error('Error checking file in storage', { error: fileError, productId, pdfPath: product.pdf_path });
+        return NextResponse.json(
+          { 
+            status: 'failed', 
+            error: 'Failed to verify PDF file',
+            productId
+          },
+          { status: 500, headers: corsHeaders }
+        );
+      }
+
+      if (!fileData) {
+        logger.warn('PDF file not found in storage', { productId, pdfPath: product.pdf_path });
+        return NextResponse.json(
+          { 
+            status: 'failed', 
+            error: 'PDF file not found in storage',
+            productId
+          },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+
+      // File exists and processing completed successfully
+      return NextResponse.json(
+        { 
+          status: 'completed', 
+          pdfUrl: product.pdf_url,
+          productId
+        },
+        { status: 200, headers: corsHeaders }
+      );
+    } catch (storageError) {
+      logger.error('Error accessing storage', { error: storageError, productId });
+      return NextResponse.json(
+        { 
+          status: 'failed', 
+          error: 'Error verifying PDF file in storage',
+          productId
+        },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+  } catch (error) {
+    logger.error('Unexpected error checking PDF status', { error, productId });
+    return NextResponse.json(
+      { 
+        status: 'failed', 
+        error: 'Unexpected error checking PDF status',
+        productId
+      },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 } 
