@@ -415,7 +415,7 @@ export default function TextGptLanding() {
               </div>
               <h3 className="font-bold mb-2">Email Support</h3>
               <p className="text-gray-600 mb-4">Send us an email and we&apos;ll respond within 24 hours.</p>
-              <a href="mailto:info@textgpt.com">
+              <a href="mailto:info@textg.pt">
                 <Button className="bg-textgpt-300 hover:bg-textgpt-400 text-white w-full sm:w-auto">Email Us</Button>
               </a>
             </div>
