@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Confirmation - TextGPT</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #023047;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .logo {
+            max-width: 180px;
+            height: auto;
+        }
+        .content {
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #fca311;
+            color: #000000;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #fb8500;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #e5e5e5;
+        }
+        .confirmation-icon {
+            font-size: 48px;
+            color: #2a9d8f;
+            margin-bottom: 20px;
+        }
+        .highlight {
+            color: #219ebc;
+            font-weight: 600;
+        }
+        .note {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #666;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/TextGPT-logo.png" alt="TextGPT Logo" class="logo">
+        </div>
+        <div class="content">
+            <div class="confirmation-icon">✓</div>
+            <h1>Email Confirmation</h1>
+            <p>Hello {{ .Data.user_metadata.full_name }},</p>
+            <p>Thank you for registering with TextGPT! We're excited to have you on board.</p>
+            <p>Please confirm your email address by clicking the button below:</p>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Confirm your mail</a>
+            
+            <div class="note">
+                <p><strong>Note:</strong> If you did not create an account with TextGPT, please disregard this email.</p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>© 2025 TextGPT. All rights reserved.</p>
+            <p>If you have any questions, please contact our <a href="mailto:help@textg.pt">support team</a>.</p>
+        </div>
+    </div>
+</body>
+</html> 

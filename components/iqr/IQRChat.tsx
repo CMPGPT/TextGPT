@@ -78,9 +78,15 @@ export function IQRChat({ businessId, initialMessage }: IQRChatProps) {
               {business ? ` ${business.name}'s products` : ' our products'}.
             </p>
             {business && (
-              <div className="mt-6 bg-iqr-100/70 border border-iqr-200/30 rounded-lg p-4 max-w-md">
-                <h3 className="font-semibold text-iqr-200 mb-2">{business.name}</h3>
-                <p className="text-iqr-300 text-sm">Ask me about our products!</p>
+              <div className="mt-6 bg-gradient-to-b from-gray-800 to-black border border-iqr-200/30 rounded-lg p-4 max-w-md shadow-lg relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-iqr-200/10 to-transparent opacity-50"></div>
+                <div className="relative z-10">
+                  <div className="flex items-center mb-3">
+                    <ShoppingBag className="h-6 w-6 text-iqr-200 mr-2" />
+                    <h3 className="font-semibold text-white text-lg">{business.name}</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm">Ask me about our products!</p>
+                </div>
               </div>
             )}
           </div>

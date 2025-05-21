@@ -45,14 +45,36 @@ const urlValidator = (value: string) => {
 // Form validation schema
 const businessFormSchema = z.object({
   name: z.string().min(2, "Business name is required"),
-  ein: z.string().min(9, "EIN/Tax ID is required"),
+  ein: z.string()
+    .min(9, "EIN/Tax ID is required")
+    .refine(
+      (ein) => {
+        // Soft validation - either 9 digits or at least 9 characters
+        return /^\d{9}$/.test(ein) || ein.length >= 9;
+      },
+      {
+        message: "EIN/Tax ID should be 9 digits"
+      }
+    ),
   address: z.string().min(5, "Business address is required"),
   website_url: z.string()
     .refine(urlValidator, "Please enter a valid URL")
     .optional()
     .or(z.literal("")),
   support_email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
-  support_phone: z.string().optional(),
+  support_phone: z.string()
+    .optional()
+    .refine(
+      (phone) => {
+        if (!phone || phone === "") return true;
+        // Basic phone format check - at least 10 digits
+        const digitsOnly = phone.replace(/\D/g, '');
+        return digitsOnly.length >= 10;
+      },
+      {
+        message: "Phone number should contain at least 10 digits"
+      }
+    ),
   privacy_policy_url: z.string()
     .refine(urlValidator, "Please enter a valid URL")
     .optional()

@@ -259,34 +259,23 @@ export const RegisterForm = () => {
             </div>
             <DialogTitle className="text-xl font-bold text-center">Registration Successful!</DialogTitle>
             <DialogDescription className="text-center text-iqr-300">
-              Your account has been created. Your IQR number is being verified.
+              A confirmation email is sent for validation.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="p-4 bg-iqr-100/20 rounded-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Phone className="h-5 w-5 text-iqr-200" />
-                <span className="font-medium">Your IQR Number:</span>
-              </div>
-              <span className="font-bold text-iqr-200">
-                {generatedNumber}
-              </span>
-            </div>
-            <div className="mt-2 flex items-start gap-2 text-sm">
-              <Info className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <p className="text-iqr-300">
-                Verification of your number will take a few days. We'll notify you when it's ready for use.
-              </p>
-            </div>
+          <div className="mt-2 flex items-start gap-2 text-sm">
+            <Info className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+            <p className="text-iqr-300">
+              Verification of your account will take a few days. We'll notify you when it's ready for use.
+            </p>
           </div>
           
           <DialogFooter>
             <Button 
               className="w-full bg-iqr-200 hover:bg-iqr-200/90 text-iqr-50"
-              onClick={() => router.push("/iqr/dashboard")}
+              onClick={() => router.push("/iqr/login")}
             >
-              Go to Dashboard ({redirectSeconds}s)
+              Go to Login
             </Button>
           </DialogFooter>
         </DialogContent>

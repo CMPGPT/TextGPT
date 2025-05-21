@@ -1,12 +1,13 @@
 'use client'
-import { useState, useEffect } from 'react';
-import { Search, X, MessageSquare, LogIn } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, X, MessageSquare, LogIn, LayoutGrid, User2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 // Define types for search results
 interface _ProductResult {
@@ -35,6 +36,7 @@ export const Header = () => {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
     const supabase = createClientComponentClient();
+    const searchResultsRef = useRef<HTMLDivElement>(null);
     
     // Check if user is authenticated
     useEffect(() => {
@@ -285,86 +287,104 @@ export const Header = () => {
         };
     }, []);
 
+    // Function to render a group of search results
+    const renderResultGroup = (title: string, results: any[]) => {
+        if (results.length === 0) return null;
+        
+        return (
+            <div key={title}>
+                <div className="px-3 py-2 bg-iqr-100/30 text-iqr-300 text-xs font-medium">
+                    {title}
+                </div>
+                {results.map((result) => (
+                    <div 
+                        key={`${result.type}-${result.id}`}
+                        className="p-3 cursor-pointer hover:bg-iqr-200/10 border-b border-iqr-200/20 last:border-b-0"
+                        onClick={() => handleResultClick(result)}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex-1 mr-2">
+                                <div className="font-medium text-iqr-400">{result.title}</div>
+                                <div className="text-xs text-iqr-300">{result.description}</div>
+                            </div>
+                            <Badge variant="outline" className="text-xs shrink-0 bg-iqr-200/10 border-iqr-200/30">
+                                {result.type === 'product' ? 'Product' : 'Phone'}
+                            </Badge>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     return (
-        <>
-            <header className="h-16 bg-iqr-100 border-b border-iqr-100/50 flex items-center justify-between px-4 sticky top-0 z-20">
-                <div className="flex items-center">
-                    <h1 className="text-xl font-semibold text-iqr-400">IQR Dashboard</h1>
+        <header className="sticky top-0 z-50 flex items-center justify-between p-3 md:p-4 bg-iqr-100 border-b border-iqr-200/20 shadow-sm">
+            <div className="flex items-center">
+                <Link href="/iqr/dashboard" className="flex items-center">
+                    <span className="font-bold text-lg md:text-xl text-iqr-400 flex items-center">
+                        <span className="hidden md:inline mr-2">IQR</span>
+                        <span className="inline md:hidden mr-1">IQR</span>
+                        <LayoutGrid size={18} className="inline-block text-iqr-200 mr-2" />
+                    </span>
+                </Link>
+                {!loading && user && (
+                    <div className="hidden sm:flex items-center space-x-1 ml-4">
+                        <Badge variant="outline" className="text-xs py-0 h-6 bg-iqr-200/10 hover:bg-iqr-200/20 transition-colors border-iqr-200/30">
+                            <User2 size={12} className="mr-1 text-iqr-200" />
+                            <span className="text-iqr-300">{user.email?.split('@')[0] || 'User'}</span>
+                        </Badge>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center flex-1 max-w-md md:max-w-lg mx-auto relative">
+                <div className="relative w-full">
+                    <Input
+                        type="text"
+                        placeholder="Search products or phone numbers..."
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        className="pl-8 pr-8 bg-transparent border-iqr-200/20 focus:border-iqr-200/50 text-iqr-400 placeholder:text-iqr-300/50 focus-visible:ring-iqr-200/20 focus-visible:ring-offset-0"
+                        onClick={() => setShowResults(searchResults.length > 0)}
+                    />
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-iqr-200/60" />
+                    {searchQuery && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-iqr-300"
+                            onClick={clearSearch}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
 
-                <div className="flex items-center space-x-2 md:space-x-4">
-                    {/* Search container - hide on mobile */}
-                    <div id="search-container" className="relative hidden md:block max-w-xs w-full">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-iqr-300/50" />
-                        
-                        <Input
-                            className="pl-8 bg-iqr-100/70 border-iqr-100/30 focus-visible:ring-iqr-200 text-sm"
-                            placeholder="Search products, phone #..."
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                        />
-                        
-                        {searchQuery && (
-                            <button 
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-iqr-300/50 hover:text-iqr-400"
-                                onClick={clearSearch}
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                        
-                        {/* Search Results Dropdown */}
-                        {showResults && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-iqr-100 border border-iqr-100/30 rounded-md shadow-lg z-30 max-h-96 overflow-y-auto">
-                                {isSearching ? (
-                                    <div className="p-3 text-iqr-300 text-sm">Searching...</div>
-                                ) : searchResults.length === 0 ? (
-                                    <div className="p-3 text-iqr-300 text-sm">No results found</div>
-                                ) : (
-                                    <div>
-                                        {searchResults.map((result) => (
-                                            <div 
-                                                key={`${result.type}-${result.id}`}
-                                                className="p-3 cursor-pointer hover:bg-iqr-200/20 border-b border-iqr-100/30 last:border-b-0"
-                                                onClick={() => handleResultClick(result)}
-                                                title={result.type === 'product' ? result.fullDescription : ''}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex-1 mr-2">
-                                                        <div className="font-medium text-iqr-400">{result.title}</div>
-                                                        <div className="text-xs text-iqr-300 whitespace-normal">{result.description}</div>
-                                                    </div>
-                                                    <Badge variant="outline" className="text-xs shrink-0">
-                                                        {result.type === 'product' ? 'Product' : 'Phone'}
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                {/* Show search results if any */}
+                {showResults && (
+                    <div
+                        ref={searchResultsRef}
+                        className="absolute top-full left-0 right-0 mt-1 bg-iqr-50 border border-iqr-200/20 rounded-md shadow-lg overflow-hidden z-20 max-h-[400px] overflow-y-auto"
+                    >
+                        {isSearching ? (
+                            <div className="flex items-center justify-center p-4 text-iqr-300">
+                                <span className="animate-spin mr-2">
+                                    <RefreshCw size={16} />
+                                </span>
+                                Searching...
+                            </div>
+                        ) : searchResults.length === 0 ? (
+                            <div className="p-4 text-center text-iqr-300">No results found</div>
+                        ) : (
+                            <div>
+                                {/* Group results by type */}
+                                {renderResultGroup("Products", searchResults.filter(r => r.type === 'product'))}
+                                {renderResultGroup("Phone Numbers", searchResults.filter(r => r.type === 'phone'))}
                             </div>
                         )}
                     </div>
-                    
-                    <Link href="/iqr/chat">
-                        <Button className="bg-iqr-200 text-iqr-50 hover:bg-iqr-200/90 px-2 md:px-4">
-                            <MessageSquare size={18} className="mr-0 md:mr-2" />
-                            <span className="hidden md:inline">Chat</span>
-                        </Button>
-                    </Link>
-                    
-                    {loading ? null : user ? (
-                        <></>
-                    ) : (
-                        <Link href="/iqr/login">
-                            <Button variant="outline" className="border-iqr-200 text-iqr-300 hover:text-iqr-200 px-2 md:px-4">
-                                <LogIn size={18} className="mr-0 md:mr-2" />
-                                <span className="hidden md:inline">Sign In</span>
-                            </Button>
-                        </Link>
-                    )}
-                </div>
-            </header>
-        </>
+                )}
+            </div>
+        </header>
     );
 };

@@ -67,8 +67,34 @@ export function useIQRChat(businessId: string) {
     try {
       setIsLoading(true);
       console.log(`[CLIENT] Fetching business data for business ID: ${businessId}`);
+      
+      // First attempt: try getting business data with products
       const response = await fetch(`/api/iqr/products?businessId=${businessId}&businessInfo=true`);
-      if (!response.ok) throw new Error('Failed to fetch business data');
+      
+      if (!response.ok) {
+        console.warn(`[CLIENT] Failed to fetch business data with products, trying direct business fetch`);
+        // Second attempt: try getting business data directly
+        const directResponse = await fetch(`/api/iqr/business?businessId=${businessId}`);
+        
+        if (!directResponse.ok) {
+          throw new Error('Failed to fetch business data after multiple attempts');
+        }
+        
+        const directData = await directResponse.json();
+        if (directData.business) {
+          console.log(`[CLIENT] Retrieved business data: ${directData.business.name || 'Test Business'}`);
+          
+          // Ensure business name is always set
+          if (directData.business && !directData.business.name) {
+            directData.business.name = 'Test Business';
+          }
+          
+          setBusiness(directData.business);
+          return;
+        }
+        
+        throw new Error('Business data unavailable');
+      }
       
       const data = await response.json();
       if (data.business) {
@@ -80,14 +106,24 @@ export function useIQRChat(businessId: string) {
         }
         
         setBusiness(data.business);
+      } else {
+        throw new Error('Business data missing in response');
       }
     } catch (err) {
       console.error('[CLIENT] Error fetching business data:', err);
-      setError('Failed to fetch business information');
+      setError('Failed to fetch business information. Please refresh the page.');
+      
+      // Fallback: Create a minimal business object so UI doesn't break
+      if (!business) {
+        setBusiness({
+          id: businessId,
+          name: 'Business',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, business]);
 
   // Fetch products for the business
   const fetchBusinessProducts = useCallback(async () => {

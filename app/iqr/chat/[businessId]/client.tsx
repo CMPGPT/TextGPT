@@ -15,18 +15,40 @@ interface ChatPageClientProps {
 export function ChatPageClient({ params }: ChatPageClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [_businessExists, setBusinessExists] = useState(false);
+  const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(null);
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const businessId = params.businessId;
+  const urlParam = params.businessId;
 
   useEffect(() => {
-    async function checkBusinessExists() {
+    async function resolveBusinessIdentifier() {
       try {
         setLoading(true);
+        console.log(`Resolving business identifier: ${urlParam}`);
         
         const supabase = createClient();
+        let businessId = urlParam;
+        
+        // First check if the param is a QR text tag
+        if (!urlParam.includes('-')) { // UUID contains hyphens, QR text tags don't
+          console.log('Parameter appears to be a QR text tag, looking up related business');
+          const { data: productData, error: productError } = await supabase
+            .from('products')
+            .select('business_id')
+            .eq('qr_text_tag', urlParam)
+            .single();
+          
+          if (productError || !productData) {
+            console.error('Product with QR text tag not found:', urlParam, productError);
+            // Fall back to treating it as a business ID just in case
+          } else if (productData.business_id) {
+            console.log('Found business ID from QR text tag:', productData.business_id);
+            businessId = productData.business_id;
+          }
+        }
+        
+        // Now verify the business exists
         const { data, error } = await supabase
           .from('businesses')
           .select('id')
@@ -38,13 +60,14 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
           setError(`The business you're looking for doesn't exist`);
           
           // Redirect to chat page with error parameter
-          router.push(`/iqr/chat?error=business_not_found&id=${businessId}`);
+          router.push(`/iqr/chat?error=business_not_found&id=${urlParam}`);
           return;
         }
         
-        setBusinessExists(true);
+        // Store the resolved business ID
+        setResolvedBusinessId(businessId);
       } catch (err) {
-        console.error('Error checking business:', err);
+        console.error('Error resolving business:', err);
         setError('An error occurred while checking business');
       } finally {
         setLoading(false);
@@ -71,8 +94,8 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
       }
     }
 
-    checkBusinessExists();
-  }, [businessId, router, searchParams]);
+    resolveBusinessIdentifier();
+  }, [urlParam, router, searchParams]);
 
   if (loading) {
     return (
@@ -89,9 +112,19 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
     return null; // Will redirect, this prevents flash of content
   }
 
+  if (!resolvedBusinessId) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-iqr-100 text-iqr-400">
+        <div className="text-center">
+          <p>Unable to resolve business information</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="flex flex-col h-screen w-full bg-iqr-100 text-iqr-400 overflow-hidden">
-      <IQRChat businessId={businessId} initialMessage={initialMessage} />
+      <IQRChat businessId={resolvedBusinessId} initialMessage={initialMessage} />
     </main>
   );
 } 

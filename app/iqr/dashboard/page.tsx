@@ -11,7 +11,7 @@ import { ProductList } from '@/components/iqr/dashboard/productlist';
 import { Analytics } from '@/components/iqr/dashboard/analyticsoverview';
 import { MessageLogs } from '@/components/iqr/dashboard/massagelogs';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Edit, Phone, Globe, Mail, Plus, Package, BarChart4, MessageSquare, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -514,7 +514,16 @@ function IQRDashboardContent() {
 
 export default function IQRDashboard() {
   return (
-    <Suspense fallback={<div className="p-6 bg-[#14213D] min-h-screen" />}>
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center bg-iqr-50 text-iqr-400">
+        <div className="text-center">
+          <div className="animate-spin mb-4 mx-auto h-8 w-8 text-iqr-200">
+            <RefreshCw />
+          </div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    }>
       <IQRDashboardContent />
     </Suspense>
   );

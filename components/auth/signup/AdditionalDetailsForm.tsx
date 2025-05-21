@@ -31,10 +31,10 @@ import {
 
 // Form validation schema
 const businessDetailsSchema = z.object({
-  product_type: z.string().optional(),
+  product_type: z.string().min(1, "Please specify your product/service type"),
   business_size: z.string().optional(),
-  toll_free_use_case: z.string().optional(),
-  message_volume: z.string().optional(),
+  toll_free_use_case: z.string().min(1, "Please specify your use case"),
+  message_volume: z.string().min(1, "Please select a message volume"),
   custom_message_volume: z.string().optional(),
   termsAccepted: z.boolean().refine(val => val === true, {
     message: "You must accept the terms and conditions"
