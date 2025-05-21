@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-04-30.basil",
+  apiVersion: "2023-10-16",
 });
 
 export async function GET(req: NextRequest) {
@@ -33,15 +33,15 @@ export async function GET(req: NextRequest) {
       });
     }
 
-          return NextResponse.json({
+    return NextResponse.json({
       success: true,
       subscriptions: filteredSubscriptions.map((subscription) => {
-        // Cast to any to avoid TypeScript errors with Stripe types
-        const sub = subscription as any;
         return {
           id: subscription.id,
           status: subscription.status,
-          current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+          current_period_end: subscription.current_period_end 
+            ? new Date(subscription.current_period_end * 1000) 
+            : null,
           cancel_at_period_end: subscription.cancel_at_period_end,
           items: subscription.items.data.map((item) => ({
             id: item.id,

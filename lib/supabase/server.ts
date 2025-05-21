@@ -2,6 +2,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createServerClient } from '@supabase/ssr';
 import { Database } from '../../types/supabase';
 import { cookies } from 'next/headers';
+import { createClient as createServerClientJs } from '@supabase/supabase-js';
 
 // This is a helper function to create a compatible client in both App Router and Pages Router
 export const createClient = () => {
@@ -71,4 +72,26 @@ export const supabaseServerForPages = (req: any, res: any) => {
       },
     }
   );
+};
+
+// Initialize the Supabase client with env variables
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable - falling back to anon key');
+}
+
+// Create a Supabase client for server operations
+export const createServerSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  
+  return createServerClientJs<Database>(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 }; 

@@ -1,69 +1,76 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { stripeClient } from '@/lib/stripe';
+import { createClient } from '@/lib/supabase/client';
+import type Stripe from 'stripe';
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const businessId = searchParams.get('businessId');
-  const includeBusinessInfo = searchParams.get('businessInfo') === 'true';
+// The specific product ID we want to fetch
+const IQR_PRODUCT_ID = 'prod_SKUcmFulvJlPM6';
 
-  if (!businessId) {
-    return NextResponse.json(
-      { error: 'Business ID is required' },
-      { status: 400 }
-    );
-  }
-
+/**
+ * GET endpoint to fetch IQR products from Stripe
+ */
+export async function GET(req: NextRequest) {
   try {
-    console.log(`[API/products] Fetching products for business ID: ${businessId}`);
-    const supabase = createClient();
+    // Get query parameters
+    const url = new URL(req.url);
+    const businessId = url.searchParams.get('businessId');
     
-    // Fetch products for the business
-    const { data: products, error: productsError } = await supabase
-      .from('products')
-      .select('id, name, description, system_prompt, qr_text_tag, status')
-      .eq('business_id', businessId)
-      .eq('status', 'ready');
+    // Fetch the product from Stripe
+    const product = await stripeClient.products.retrieve(IQR_PRODUCT_ID);
     
-    if (productsError) {
-      console.error('[API/products] Error fetching products:', productsError);
+    if (!product || product.active === false) {
       return NextResponse.json(
-        { error: 'Failed to fetch products' },
-        { status: 500 }
+        { error: 'Product not available' },
+        { status: 404 }
       );
     }
     
-    // If business info is requested, fetch that too
-    let business = null;
-    if (includeBusinessInfo) {
-      const { data: businessData, error: businessError } = await supabase
+    // Fetch prices for this product
+    const prices = await stripeClient.prices.list({
+      product: product.id,
+      active: true,
+      type: 'recurring',
+    });
+    
+    // Format product details with prices
+    const productDetails = {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      image: product.images?.[0] || null,
+      prices: prices.data.map((price: Stripe.Price) => ({
+        id: price.id,
+        amount: price.unit_amount ? price.unit_amount / 100 : 0,
+        currency: price.currency,
+        interval: price.recurring?.interval || 'month',
+        interval_count: price.recurring?.interval_count || 1,
+      })),
+      metadata: product.metadata,
+    };
+    
+    // If businessId is provided, check if the business already has a subscription
+    let subscriptionStatus = null;
+    if (businessId) {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from('businesses')
-        .select('id, name, website_url, support_email, support_phone')
+        .select('subscription_status')
         .eq('id', businessId)
         .single();
       
-      if (businessError) {
-        console.error('[API/products] Error fetching business:', businessError);
-        // We'll still return products, but with an indication that business fetch failed
-      } else {
-        business = businessData;
+      if (!error && data) {
+        subscriptionStatus = data.subscription_status;
       }
     }
     
-    // Construct response based on what was requested
-    const response: any = {
-      products: products || []
-    };
-    
-    if (includeBusinessInfo) {
-      response.business = business;
-    }
-    
-    console.log(`[API/products] Returning ${products?.length || 0} products for business ${businessId}`);
-    return NextResponse.json(response);
+    return NextResponse.json({
+      product: productDetails,
+      subscriptionStatus,
+    });
   } catch (error) {
-    console.error('[API/products] Unexpected error:', error);
+    console.error('Error fetching products:', error);
     return NextResponse.json(
-      { error: 'An unexpected error occurred' },
+      { error: 'Failed to fetch products' },
       { status: 500 }
     );
   }

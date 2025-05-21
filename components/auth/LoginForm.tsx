@@ -67,10 +67,18 @@ export const LoginForm = () => {
       }
 
       if (authData && authData.session) {
-        console.log("Login successful, redirecting to dashboard...");
+        console.log("Login successful");
+        
+        // Check URL parameters for redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectPath = urlParams.get('redirect');
+        
+        // Redirect to the specified path or dashboard
+        const redirectUrl = redirectPath || "/iqr/dashboard";
+        console.log("Redirecting to:", redirectUrl);
         
         // Force a complete navigation to ensure cookies are properly set
-        window.location.href = "/iqr/dashboard";
+        window.location.href = redirectUrl;
       } else {
         setError("Login succeeded but no session was created. Please try again.");
         setIsLoading(false);

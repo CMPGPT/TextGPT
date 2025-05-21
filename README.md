@@ -182,3 +182,43 @@ The centralized utilities are in `utils/pdf-processing.ts` and include:
 - `chunkText`: Splits text into chunks for embedding
 - `generateEmbeddings`: Generates embeddings for text chunks
 - `processPdfEndToEnd`: Orchestrates the entire process
+
+## Stripe Integration Setup
+
+### Webhook Configuration
+
+To ensure proper handling of subscription events, you need to configure Stripe webhooks correctly:
+
+1. In your Stripe Dashboard, go to "Developers" > "Webhooks" 
+2. Click "Add endpoint"
+3. Set the endpoint URL to: `https://your-domain.com/api/iqr/stripe/webhooks`
+4. For the events to listen to, add the following:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `invoice.payment_succeeded`
+   - `invoice.payment_failed`
+
+5. Copy the webhook signing secret
+6. Add the secret to your environment variables as `STRIPE_WEBHOOK_SECRET`
+
+### Environment Variables
+
+Make sure your project has the following Stripe-related environment variables:
+
+```
+STRIPE_SECRET_KEY=sk_test_...  # Your Stripe secret key
+STRIPE_WEBHOOK_SECRET=whsec_... # Your webhook signing secret
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_... # Your publishable key
+```
+
+### Verifying Webhook Configuration
+
+You can verify that webhook events are being received correctly by checking your application logs after attempting a subscription. You should see entries like:
+
+```
+[Stripe Webhook] Processing: checkout.session.completed
+```
+
+If you don't see these logs, verify that your webhook is correctly configured and that the signing secret matches.

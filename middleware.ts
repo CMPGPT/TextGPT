@@ -1,7 +1,38 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from './types/supabase';
+import { createClient } from '@/lib/supabase/client';
+
+// Protected routes that require subscription
+const PROTECTED_ROUTES = [
+  '/iqr/dashboard', 
+  '/iqr/upload',
+  '/iqr/chat',
+  '/iqr/manual-pdf-processing',
+  '/iqr/qrcodes',
+];
+
+// Pages that should redirect logged-in users
+const AUTH_PAGES = [
+  '/iqr/login',
+  '/iqr/signup',
+  '/iqr/forgot-password',
+];
+
+// Pages that are always accessible without authentication
+const PUBLIC_ROUTES = [
+  '/',
+  '/iqr/landing',
+  '/iqr-subscription',
+  '/api/',
+  '/_next/',
+  '/favicon.ico',
+  '/terms',
+  '/privacy',
+  '/icons/',
+  '/coming-soon',
+  '/subscription/plans',
+  '/subscription/success',
+];
 
 // Enhanced logging function
 function log(...args: any[]) {
@@ -31,47 +62,11 @@ export async function middleware(request: NextRequest) {
       });
     }
     
-    // Create a response object to modify
-    const res = NextResponse.next();
-    
-    // Create a Supabase client for the middleware
-    const supabase = createMiddlewareClient<Database>({ req: request, res });
-    
-    // Refresh the session - important for auth state
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      log(`Session error: ${sessionError.message}`);
+    // Check if it's a public route that should always be accessible
+    if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route))) {
+      return NextResponse.next();
     }
     
-    // Debug session state
-    log(`Session state for ${pathname}: ${session ? 'Authenticated' : 'Unauthenticated'}`);
-    
-    // Handle auth routes - when accessing /auth/* redirect to IQR equivalents
-    // This ensures we use the right authentication flow
-    if (pathname.startsWith('/auth/')) {
-      log(`Redirecting from legacy auth route: ${pathname}`);
-      const newPath = pathname.replace('/auth/', '/iqr/');
-      return NextResponse.redirect(new URL(newPath, request.url));
-    }
-    
-    // Handle IQR protected routes
-    if (pathname.startsWith('/iqr/dashboard') || 
-        pathname.startsWith('/iqr/qrcodes') || 
-        pathname.startsWith('/iqr/upload')) {
-      // If not authenticated, redirect to login
-      if (!session) {
-        log(`Redirecting unauthenticated user from ${pathname} to login`);
-        return NextResponse.redirect(new URL('/iqr/login', request.url));
-      }
-    }
-    
-    // If user is signed in and tries to access login/signup pages, redirect to dashboard
-    if (session && (pathname.startsWith('/iqr/login') || pathname.startsWith('/iqr/signup'))) {
-      log(`Redirecting authenticated user from ${pathname} to dashboard`);
-      return NextResponse.redirect(new URL('/iqr/dashboard', request.url));
-    }
-
     // Add CORS headers for API routes
     if (pathname.startsWith('/api/')) {
       log(`Middleware detected API request: ${pathname}, Method: ${request.method}`);
@@ -88,9 +83,89 @@ export async function middleware(request: NextRequest) {
       
       return response;
     }
+    
+    // Handle auth routes - when accessing /auth/* redirect to IQR equivalents
+    if (pathname.startsWith('/auth/')) {
+      log(`Redirecting from legacy auth route: ${pathname}`);
+      const newPath = pathname.replace('/auth/', '/iqr/');
+      return NextResponse.redirect(new URL(newPath, request.url));
+    }
+    
+    // Create a Supabase client for the middleware
+    const supabase = createClient();
+    
+    // Get the auth session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      log(`Session error: ${sessionError.message}`);
+    }
+    
+    log(`Session state for ${pathname}: ${session ? 'Authenticated' : 'Unauthenticated'}`);
+    
+    // If user is signed in and tries to access login/signup pages, redirect to dashboard
+    if (session && AUTH_PAGES.some(page => pathname.startsWith(page))) {
+      log(`Redirecting authenticated user from ${pathname} to dashboard`);
+      return NextResponse.redirect(new URL('/iqr/dashboard', request.url));
+    }
 
-    // Continue with the request and return the response with updated auth cookie
-    return res;
+    // If not logged in and not on a public or auth route, redirect to login
+    if (!session && !AUTH_PAGES.some(page => pathname.startsWith(page)) && 
+        !PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route))) {
+      log(`Redirecting unauthenticated user from ${pathname} to login`);
+      const redirectUrl = new URL('/iqr/login', request.url);
+      // Add a redirect parameter to redirect back after login
+      redirectUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Check if the route needs subscription validation
+    if (session && PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
+      try {
+        // Get the user's business ID
+        const userId = session.user.id;
+        
+        const { data: userData, error: userError } = await supabase
+          .from('iqr_users')
+          .select('business_id')
+          .eq('auth_uid', userId)
+          .single();
+        
+        if (userError || !userData) {
+          console.error('Error getting business ID for user:', userError);
+          // Redirect to subscription page if user data can't be found
+          return NextResponse.redirect(new URL('/subscription/plans', request.url));
+        }
+        
+        const businessId = userData.business_id;
+        
+        // Check subscription status
+        const { data: businessData, error: businessError } = await supabase
+          .from('businesses')
+          .select('subscription_status')
+          .eq('id', businessId)
+          .single();
+        
+        if (businessError || !businessData) {
+          console.error('Error getting business subscription data:', businessError);
+          // Redirect to subscription page if business data can't be found
+          return NextResponse.redirect(new URL('/subscription/plans', request.url));
+        }
+        
+        // If no active subscription, redirect to subscription page
+        if (businessData.subscription_status !== 'active') {
+          log(`User ${userId} has no active subscription, redirecting to plans page`);
+          return NextResponse.redirect(new URL('/subscription/plans', request.url));
+        }
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+        // Default to redirecting to subscription page on error
+        return NextResponse.redirect(new URL('/subscription/plans', request.url));
+      }
+    }
+
+    // Continue with the request
+    return NextResponse.next();
   } catch (err) {
     // Log any errors that occur in middleware
     console.error(`[Middleware Error][${new Date().toISOString()}]`, err);
@@ -101,13 +176,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/iqr/dashboard/:path*',
-    '/iqr/qrcodes/:path*',
-    '/iqr/upload/:path*',
-    '/iqr/chat/:path*',
-    '/iqr/login',
-    '/iqr/signup',
-    '/auth/:path*', // Add auth routes to redirect them to IQR routes
-    '/api/:path*',
+    // Match all request paths except for the ones starting with:
+    // - _next/static (static files)
+    // - _next/image (image optimization files)
+    // - favicon.ico (favicon file)
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

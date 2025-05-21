@@ -556,7 +556,7 @@ export const QRCreationForm = ({ businessId, onDataUpdate, cachedData }: QRCreat
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <div className="space-y-2 mb-6">
+      <div className="space-y-2 mb-6 pt-5">
         <h1 className="text-3xl font-bold tracking-tight">Create New Product</h1>
         <p className="text-muted-foreground">
           Create a product with QR code for customers to access information. PDF documentation is optional.

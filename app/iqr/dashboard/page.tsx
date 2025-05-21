@@ -26,6 +26,7 @@ type BusinessInfo = {
   privacy_policy_url: string;
   terms_of_service_url: string;
   iqr_number: string;
+  subscription_status?: string;
 };
 
 // Define interfaces for tab-specific data we want to cache
@@ -361,35 +362,38 @@ function IQRDashboardContent() {
 
   if (error || !businessInfo) {
     return (
-      <div className="p-6 bg-[#14213D] min-h-screen flex items-center justify-center">
-        <div className="text-white text-center max-w-md p-6 bg-card rounded-lg">
-          <h2 className="text-xl font-semibold mb-4">Error</h2>
-          <p className="mb-4">{error || 'No business information found. Please try again later.'}</p>
-          <div className="flex space-x-4 justify-center">
-            <Button 
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-2"
-            >
-              {isRefreshing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Retrying...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Retry
-                </>
-              )}
-            </Button>
-            <Button 
-              onClick={() => router.push('/iqr/login')}
-              className="bg-iqr-200"
-            >
-              Back to Login
-            </Button>
+      <div className="p-6 bg-[#14213D] min-h-screen">
+        <Header />
+        <div className="flex items-center justify-center h-[calc(100vh-120px)]">
+          <div className="text-white text-center max-w-md p-6 bg-card rounded-lg">
+            <h2 className="text-xl font-semibold mb-4">Error</h2>
+            <p className="mb-4">{error || 'No business information found. Please try again later.'}</p>
+            <div className="flex space-x-4 justify-center">
+              <Button 
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2"
+              >
+                {isRefreshing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    Retry
+                  </>
+                )}
+              </Button>
+              <Button 
+                onClick={() => router.push('/iqr/login')}
+                className="bg-iqr-200"
+              >
+                Back to Login
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -418,7 +422,7 @@ function IQRDashboardContent() {
   // Main content with separate tab content loading
   return (
     <div className="p-6 bg-[#14213D] min-h-screen">
-      <Header />
+      <Header subscriptionStatus={businessInfo.subscription_status === 'active' ? 'active' : 'inactive'} />
       <div className="mt-6 space-y-8">
         {/* User section (never refreshed after initial load) */}
         <div className="flex justify-center">

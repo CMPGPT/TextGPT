@@ -65,6 +65,19 @@ export const RegisterForm = () => {
     setStep(3);
   };
 
+  // Check for redirect URL in query parameters
+  const [redirectUrl, setRedirectUrl] = useState<string>("/iqr/dashboard");
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectParam = urlParams.get('redirect');
+      if (redirectParam) {
+        setRedirectUrl(redirectParam);
+      }
+    }
+  }, []);
+
   // Handle countdown for redirect
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -74,13 +87,13 @@ export const RegisterForm = () => {
         setRedirectSeconds(prev => prev - 1);
       }, 1000);
     } else if (showSuccess && redirectSeconds === 0) {
-      router.push("/iqr/dashboard");
+      router.push(redirectUrl);
     }
     
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [showSuccess, redirectSeconds, router]);
+  }, [showSuccess, redirectSeconds, router, redirectUrl]);
 
   // Handle countdown for login redirect
   useEffect(() => {

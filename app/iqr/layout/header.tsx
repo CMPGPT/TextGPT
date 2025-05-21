@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, MessageSquare, LogIn, LayoutGrid, User2 } from 'lucide-react';
+import { Search, X, MessageSquare, LogIn, LayoutGrid, User2, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Define types for search results
 interface _ProductResult {
@@ -27,7 +28,12 @@ interface _MessageResult {
     } | null;
 }
 
-export const Header = () => {
+// Define props for the Header component
+interface HeaderProps {
+    subscriptionStatus?: 'active' | 'inactive';
+}
+
+export const Header = ({ subscriptionStatus }: HeaderProps = {}) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [showResults, setShowResults] = useState(false);
@@ -317,9 +323,20 @@ export const Header = () => {
         );
     };
 
+    // Function to handle chat button click
+    const handleChatClick = () => {
+        const businessId = localStorage.getItem('iqr_business_id');
+        if (businessId) {
+            router.push(`/iqr/chat/${businessId}`);
+        } else {
+            router.push('/iqr/chat');
+        }
+    };
+
     return (
         <header className="sticky top-0 z-50 flex items-center justify-between p-3 md:p-4 bg-iqr-100 border-b border-iqr-200/20 shadow-sm">
-            <div className="flex items-center">
+            {/* Left section - Logo and user info */}
+            <div className="flex items-center justify-center w-1/4">
                 <Link href="/iqr/dashboard" className="flex items-center">
                     <span className="font-bold text-lg md:text-xl text-iqr-400 flex items-center">
                         <span className="hidden md:inline mr-2">IQR</span>
@@ -337,7 +354,8 @@ export const Header = () => {
                 )}
             </div>
 
-            <div className="flex items-center flex-1 max-w-md md:max-w-lg mx-auto relative">
+            {/* Middle section - Search bar */}
+            <div className="flex items-center w-1/2 md:w-2/4 mx-auto">
                 <div className="relative w-full">
                     <Input
                         type="text"
@@ -384,6 +402,40 @@ export const Header = () => {
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Right section - Navigation icons and subscription status */}
+            <div className="flex items-center justify-end space-x-3 w-1/4">
+                {subscriptionStatus !== undefined && (
+                    subscriptionStatus === 'active' ? (
+                        <Badge className="bg-green-600/20 text-green-400 text-xs font-medium py-1 px-2 rounded-md">
+                            Subscribed
+                        </Badge>
+                    ) : (
+                        <Link href="/subscription/plans">
+                            <Badge className="bg-gray-600/20 text-gray-400 text-xs font-medium py-1 px-2 rounded-md cursor-pointer hover:bg-gray-600/30 transition-colors">
+                                Not Subscribed
+                            </Badge>
+                        </Link>
+                    )
+                )}
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-iqr-300 hover:text-iqr-400 hover:bg-iqr-200/10"
+                    onClick={handleChatClick}
+                >
+                    <MessageSquare size={20} />
+                </Button>
+                <Link href="/iqr/chat">
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-iqr-300 hover:text-iqr-400 hover:bg-iqr-200/10"
+                    >
+                        <Store size={20} />
+                    </Button>
+                </Link>
             </div>
         </header>
     );
