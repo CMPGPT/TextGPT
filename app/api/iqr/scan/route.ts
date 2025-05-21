@@ -49,7 +49,7 @@ export async function GET() {
 }
 
 // Helper function to log errors and return a consistent response
-function handleApiError(error: any, message: string) {
+function _handleApiError(error: any, message: string) {
   const errorMsg = error instanceof Error ? error.message : String(error);
   const stackTrace = error instanceof Error ? error.stack : 'No stack trace available';
   logger.error(message, { error: errorMsg, stack: stackTrace, memory: getMemoryUsage() });

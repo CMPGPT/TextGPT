@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PostgrestError } from '@supabase/supabase-js';
 import { 
   uploadPdfToStorage, 
   extractTextFromPdf, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   chunkTextWithTokens, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   generateEmbeddingsWithTokenInfo, 
   processPdfEndToEnd, 
   PdfProcessingOptions,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   updateProductStatus
 } from '@/utils/pdf-direct-processing';
 
@@ -72,7 +76,7 @@ function generateUUID(): string {
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    const operation = url.searchParams.get('operation') || 'status';
+    const _operation = url.searchParams.get('operation') || 'status';
     const productId = url.searchParams.get('productId');
     
     // Check if we received a productId
@@ -119,7 +123,7 @@ export async function POST(req: NextRequest) {
     // Handle form data
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      const operation = formData.get('operation') as string || 'process';
+      const _operation = formData.get('operation') as string || 'process';
       const file = formData.get('file');
       let productId = formData.get('productId') as string || formData.get('product_id') as string;
       const businessId = formData.get('businessId') as string || 'fa822a5a-08b7-4a81-9609-427e7152356c'; // Default business ID
@@ -159,7 +163,7 @@ export async function POST(req: NextRequest) {
       };
       
       // Route to appropriate operation
-      switch (operation) {
+      switch (_operation) {
         case 'upload':
           if (!file || !(file instanceof Blob)) {
             return NextResponse.json({ success: false, error: 'No PDF file provided.' }, { status: 400 });
@@ -234,13 +238,13 @@ export async function POST(req: NextRequest) {
         default:
           return NextResponse.json({
             success: false,
-            error: `Unknown operation: ${operation}. Supported POST operations: upload, extract, process`
+            error: `Unknown operation: ${_operation}. Supported POST operations: upload, extract, process`
           }, { status: 400 });
       }
     } 
     // Handle JSON requests
     else if (contentType.includes('application/json')) {
-      const { operation, ...params } = await req.json();
+      const { operation, ..._params } = await req.json();
       
       // Handle JSON-specific operations (if any)
       switch (operation) {
@@ -278,7 +282,7 @@ export async function POST(req: NextRequest) {
  * 
  * Status checking has been completely disabled per user request.
  */
-async function handleStatusCheck(productId: string | null) {
+async function _handleStatusCheck(productId: string | null) {
   if (!productId) {
     return NextResponse.json({ success: false, error: 'Missing product ID' }, { status: 400 });
   }

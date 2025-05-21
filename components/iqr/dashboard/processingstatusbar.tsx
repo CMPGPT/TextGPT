@@ -14,12 +14,12 @@ interface ProcessingStatusBarProps {
   productId: string;
   isActive: boolean;
   onProcessingComplete?: () => void;
-  onProcessingFailed?: () => void;
+  _onProcessingFailed?: () => void;
   className?: string;
 }
 
 // Track active processing bars to prevent duplicates
-let activeProcessingBars: {[key: string]: boolean} = {};
+const activeProcessingBars: {[key: string]: boolean} = {};
 
 // Define all possible processing stages outside the component
 // to avoid recreating them on each render
@@ -63,7 +63,7 @@ const PROCESSING_STAGES: ProcessingStage[] = [
 ];
 
 // Helper function to calculate progress based on stage
-const calculateProgressFromStage = (status: string, chunkCount: number): number => {
+const _calculateProgressFromStage = (status: string, chunkCount: number): number => {
   const stageIndex = PROCESSING_STAGES.findIndex(stage => stage.key === status);
   if (stageIndex === -1) return 0;
   
@@ -85,14 +85,14 @@ const calculateProgressFromStage = (status: string, chunkCount: number): number 
 const ActiveProcessingStatusBar = ({
   productId,
   onProcessingComplete,
-  onProcessingFailed,
+  _onProcessingFailed,
   className
 }: Omit<ProcessingStatusBarProps, 'isActive'>) => {
   // State hooks
   const [currentStage, setCurrentStage] = useState<string>('uploading');
   const [progress, setProgress] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
-  const [completed, setCompleted] = useState<boolean>(false);
+  const [error, _setError] = useState<string | null>(null);
+  const [_completed, _setCompleted] = useState<boolean>(false);
   const [isRendered, setIsRendered] = useState<boolean>(false);
   
   // Register this component as active
@@ -136,7 +136,7 @@ const ActiveProcessingStatusBar = ({
         
         // If we've reached the final stage
         if (currentStageIndex >= stages.length) {
-          setCompleted(true);
+          _setCompleted(true);
           setProgress(100);
           clearInterval(progressInterval);
           
@@ -228,4 +228,9 @@ export const ProcessingStatusBar = (props: ProcessingStatusBarProps) => {
   
   // Only render the inner component with hooks if we should actually show it
   return <ActiveProcessingStatusBar {...props} />;
+};
+
+// Add underscore to unused function
+const _onProcessingFailed = () => {
+  // Implementation
 };

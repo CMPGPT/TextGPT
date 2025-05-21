@@ -1,23 +1,20 @@
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User
-} from 'firebase/auth';
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from './firestore';
-import { db } from './firestore';
+import { createClient } from '@/lib/supabase/client';
+import { User } from '@supabase/supabase-js';
 
-// Firebase authentication service
-const auth = getAuth();
+// Create Supabase client
+const createSupabaseClient = () => {
+  return createClient();
+};
 
 // Function to sign in user
 export const signIn = async (email: string, password: string) => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) throw error;
+    return { user: data.user, error: null };
   } catch (error) {
     if (error instanceof Error) {
       return { user: null, error };
@@ -29,8 +26,11 @@ export const signIn = async (email: string, password: string) => {
 // Function to create new user
 export const createUser = async (email: string, password: string) => {
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    
+    if (error) throw error;
+    return { user: data.user, error: null };
   } catch (error) {
     if (error instanceof Error) {
       return { user: null, error };
@@ -42,7 +42,10 @@ export const createUser = async (email: string, password: string) => {
 // Function to sign out user
 export const logOut = async () => {
   try {
-    await signOut(auth);
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) throw error;
     return { error: null };
   } catch (error) {
     if (error instanceof Error) {
@@ -59,39 +62,62 @@ export const useAuthState = () => {
   const [userRole, setUserRole] = useState<'admin' | 'business' | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+    const supabase = createSupabaseClient();
+    
+    // Get the current user
+    const getCurrentUser = async () => {
       setLoading(true);
       
-      if (authUser) {
-        setUser(authUser);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         
-        // Get user role from Firestore
-        try {
-          const userDoc = await getDoc(doc(db, 'users', authUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
+        if (session?.user) {
+          setUser(session.user);
+          
+          // Get user role from Supabase
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (userError) {
+            console.error('Error fetching user role:', userError);
+            setUserRole(null);
+          } else if (userData) {
             setUserRole(userData.role as 'admin' | 'business' | null);
           } else {
             setUserRole(null);
           }
-        } catch (error) {
-          console.error('Error fetching user role:', error);
+        } else {
+          setUser(null);
           setUserRole(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Error getting current user:', error);
         setUser(null);
         setUserRole(null);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
-    });
-
+    };
+    
+    // Call initially
+    getCurrentUser();
+    
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+        getCurrentUser(); // Refetch user data including role
+      }
+    );
+    
+    // Clean up the subscription
     return () => {
-      unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
   return { user, loading, userRole };
-};
-
-export { auth }; 
+}; 

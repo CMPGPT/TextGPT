@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -246,12 +246,12 @@ export default function PdfManualProcessingPage() {
       });
 
       // Update progress periodically while waiting for response
-      let progressInterval = setInterval(() => {
+      const progressInterval = setInterval(() => {
         setProgress((prev) => {
           // Cap at 90% until we get the actual result
           return prev < 90 ? prev + 5 : prev;
         });
-      }, 10000); // Update every 10 seconds
+      }, 750);
 
       const result = await response.json();
       
@@ -300,7 +300,7 @@ export default function PdfManualProcessingPage() {
       formData.append('serviceType', 'product-pdf');
       
       // Add progress tracking with server-sent events
-      const updateProgressFromServer = async (stage: string, percent: number) => {
+      const _updateProgressFromServer = async (stage: string, percent: number) => {
         let overallProgress = 0;
         // Convert stage-specific progress to overall progress
         switch (stage) {

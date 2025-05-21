@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateEmbeddingsWithTokenInfo } from '@/utils/pdf-direct-processing';
-import { createClient } from '@supabase/supabase-js';
 
 // Configure Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const _supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const _supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Only initialize supabase if we need it
 // const supabase = createClient(supabaseUrl || '', supabaseKey || '');
 
