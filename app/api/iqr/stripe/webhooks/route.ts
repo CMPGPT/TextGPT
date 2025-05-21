@@ -3,11 +3,9 @@ import { stripe } from "@/lib/stripe/index";
 import { createClient } from '@/lib/supabase/client';
 import Stripe from 'stripe';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Updated config syntax for Next.js App Router
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 // Helper function to get raw request body
 async function getRawBody(req: NextRequest): Promise<Buffer> {
@@ -18,10 +16,13 @@ async function getRawBody(req: NextRequest): Promise<Buffer> {
     return Buffer.from('');
   }
   
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
+  let done = false;
+  while (!done) {
+    const result = await reader.read();
+    done = result.done;
+    if (!done && result.value) {
+      chunks.push(result.value);
+    }
   }
   
   return Buffer.concat(chunks.map(chunk => Buffer.from(chunk)));
@@ -133,8 +134,7 @@ export async function POST(req: NextRequest) {
       
       console.log(`Determined database status: ${dbStatus} for business ID: ${businessId}`);
       
-      // Get first price item to determine plan
-      const priceId = subscription.items.data[0]?.price.id || '';
+      // Get product from subscription
       const product = subscription.items.data[0]?.price.product as string;
       
       try {

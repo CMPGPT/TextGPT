@@ -7,7 +7,7 @@ import { useForm as _useForm } from "react-hook-form";
 import { zodResolver as _zodResolver } from "@hookform/resolvers/zod";
 import { UserRegistrationData, BusinessRegistrationData, BusinessDetailsData, SignupPayload } from "@/types/auth";
 import { registerUser } from "@/app/actions/auth";
-import { QrCode, ArrowRight as _ArrowRight, Check, Info, Lock as _Lock, Mail as _Mail, User as _User, Globe as _Globe, Building as _Building, Phone, Shield as _Shield, FileText as _FileText, MapPin as _MapPin, Briefcase as _Briefcase, MessageSquare as _MessageSquare, Users as _Users, Loader2 as _Loader2 } from "lucide-react";
+import { QrCode, ArrowRight as _ArrowRight, Check, Info, Lock as _Lock, Mail as _Mail, User as _User, Globe as _Globe, Building as _Building, Shield as _Shield, FileText as _FileText, MapPin as _MapPin, Briefcase as _Briefcase, MessageSquare as _MessageSquare, Users as _Users, Loader2 as _Loader2 } from "lucide-react";
 import { useFormCache } from "@/hooks/useFormCache";
 
 import {
@@ -48,7 +48,7 @@ export const RegisterForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showLoginRedirect, setShowLoginRedirect] = useState(false);
-  const [generatedNumber, setGeneratedNumber] = useState<string | null>(null);
+  const [_generatedNumber, setGeneratedNumber] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [redirectSeconds, setRedirectSeconds] = useState(5);
   const _supabase = createClient();

@@ -11,7 +11,7 @@ import { ProductList } from '@/components/iqr/dashboard/productlist';
 import { Analytics } from '@/components/iqr/dashboard/analyticsoverview';
 import { MessageLogs } from '@/components/iqr/dashboard/massagelogs';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { RefreshCw, Edit, Phone, Globe, Mail, Plus, Package, BarChart4, MessageSquare, CheckCircle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 

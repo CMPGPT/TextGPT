@@ -1,12 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
-export default function SubscriptionSuccessPage() {
+// Loading fallback for the Suspense boundary
+function SubscriptionSuccessLoading() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen py-8 px-4">
+      <h1 className="text-3xl font-bold mb-4">Loading</h1>
+      <div className="flex justify-center">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionSuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -199,5 +211,13 @@ export default function SubscriptionSuccessPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function SubscriptionSuccessPage() {
+  return (
+    <Suspense fallback={<SubscriptionSuccessLoading />}>
+      <SubscriptionSuccessContent />
+    </Suspense>
   );
 } 

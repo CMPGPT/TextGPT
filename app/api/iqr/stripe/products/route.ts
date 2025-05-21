@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { stripe } from '@/lib/stripe/index';
-import { createClient } from '@/lib/supabase/client';
 
 export const dynamic = 'force-dynamic'; // Ensures the route is not statically optimized
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     console.log('Fetching IQR subscription plans from Stripe');
     

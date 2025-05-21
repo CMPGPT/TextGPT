@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateEmptyQRCodeImages } from '@/utils/qrcode-helpers';
 
+// Force dynamic execution for this route
+export const dynamic = "force-dynamic";
+
 // This route processes the queue of QR codes with empty image URLs
 // It can be called by a scheduled function or manually
 export async function GET(req: NextRequest) {

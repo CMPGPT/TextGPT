@@ -1,6 +1,30 @@
 // Authentication utilities
 import { NextAuthOptions } from "next-auth";
-import { createClient } from "@/lib/supabase/client";
+import type { JWT as _JWT } from "next-auth/jwt";
+import type { Session as _Session } from "next-auth";
+
+// Extend the Session type to include id in user
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id?: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    }
+  }
+  
+  interface User {
+    id: string;
+  }
+}
+
+// Extend JWT type
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [],  // Will be configured elsewhere

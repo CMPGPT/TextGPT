@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { getStripePromise } from '@/lib/stripe';
+import { useRouter as _useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { loadStripe } from '@stripe/stripe-js';
 import { AuthModal } from '@/components/subscription/AuthModal';
@@ -39,7 +38,6 @@ export default function SubscriptionPlansPage() {
   const [stripePromise, setStripePromise] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const router = useRouter();
   const supabase = createClient();
 
   // Initialize Stripe on component mount

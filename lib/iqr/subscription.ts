@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/client';
-import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Check if a business has an active subscription

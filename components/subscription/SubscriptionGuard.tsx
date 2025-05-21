@@ -22,7 +22,7 @@ export default function SubscriptionGuard({
   fallback,
   redirectToPlans = true,
 }: SubscriptionGuardProps) {
-  const { isLoading, isSubscribed, error } = useSubscription();
+  const { isLoading, isSubscribed } = useSubscription();
   const router = useRouter();
   
   useEffect(() => {

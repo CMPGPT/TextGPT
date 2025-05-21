@@ -3,6 +3,9 @@ import { stripeClient } from '@/lib/stripe';
 import { createClient } from '@/lib/supabase/client';
 import type Stripe from 'stripe';
 
+// Force dynamic execution for this route
+export const dynamic = "force-dynamic";
+
 // The specific product ID we want to fetch
 const IQR_PRODUCT_ID = 'prod_SKUcmFulvJlPM6';
 

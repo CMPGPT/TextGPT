@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, MessageSquare, LogIn, LayoutGrid, User2, Store } from 'lucide-react';
+import { Search, X, MessageSquare, LayoutGrid, User2, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 // Define types for search results
 interface _ProductResult {

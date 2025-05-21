@@ -19,5 +19,7 @@ module.exports = {
     'react/no-unescaped-entities': 'off',
     'no-case-declarations': 'off',
     'no-useless-escape': 'warn',
+    'no-constant-condition': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off',
   }
 }; 

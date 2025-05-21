@@ -3,6 +3,9 @@ import { stripeClient } from "@/lib/stripe";
 import type Stripe from "stripe";
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
+// Force dynamic execution for this route
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     // Get authenticated user session using server-side Supabase client
