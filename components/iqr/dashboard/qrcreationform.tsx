@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, FileText, Upload, RefreshCw } from 'lucide-react';
+import { AlertCircle, FileText, Upload, RefreshCw, Loader2, CheckCircle2, XCircle, Cog } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { ProcessingStatusBar } from './processingstatusbar';
+import { generateQRCodeForProduct } from '@/app/actions/iqr/qrcode';
 
 // Enhanced console logging with context
 const log = (message: string, data?: any) => {
@@ -22,24 +26,222 @@ const logError = (context: string, error: any) => {
 
 interface QRCreationFormProps {
   businessId: string;
+  onDataUpdate?: (data: any) => void;
+  cachedData?: any;
 }
 
-export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
+export const QRCreationForm = ({ businessId, onDataUpdate, cachedData }: QRCreationFormProps) => {
   const supabase = createClientComponentClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Form fields
   const [productName, setProductName] = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState<string>("No file chosen");
+  
+  // State variables
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailedError, setDetailedError] = useState<any>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [processingStage, setProcessingStage] = useState<string>('idle');
   const [retryCount, setRetryCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking'>('idle');
+  
+  // Dialog control
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
   const [showPdfProcessingFailedDialog, setShowPdfProcessingFailedDialog] = useState(false);
+  
+  // Data tracking
   const [productCreationData, setProductCreationData] = useState<any>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
+  const [showProcessingBar, setShowProcessingBar] = useState(false);
+  const [processingLogs, setProcessingLogs] = useState<{stage: string, message: string}[]>([]);
+  
+  // Status polling
+  const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Function to add a processing log entry
+  const addProcessingLog = (stage: string, message: string) => {
+    setProcessingLogs(prev => [...prev, { stage, message }]);
+  };
+  
+  // Start polling for status updates with enhanced tracking
+  const startStatusPolling = (productId: string) => {
+    // Clear any existing interval
+    if (statusPollingInterval) {
+      clearInterval(statusPollingInterval);
+    }
+    
+    log('Starting status polling for product', { productId });
+    
+    // Log the polling start to the database
+    supabase.from('processing_logs').insert({
+      product_id: productId,
+      action: 'polling_started',
+      details: { 
+        timestamp: new Date().toISOString(),
+        client: 'qrcreationform' 
+      }
+    }).then(({ error }) => {
+      if (error) logError('DB log polling start', error);
+    });
+    
+    // Poll every 2 seconds
+    const interval = setInterval(async () => {
+      try {
+        log(`Checking status for product ID: ${productId}`);
+        
+        // Use the consolidated endpoint for PDF processing status
+        const response = await fetch(`/api/pdf-manual?operation=status&productId=${productId}`);
+        
+        // Log each status check to the database for audit trail
+        await supabase.from('processing_logs').insert({
+          product_id: productId,
+          action: 'polling_check',
+          details: { 
+            timestamp: new Date().toISOString(),
+            responseStatus: response.status 
+          }
+        });
+        
+        if (!response.ok) {
+          const errorMessage = `Status check failed with status ${response.status}`;
+          throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+          const errorMessage = result.error || 'Failed to check processing status';
+          throw new Error(errorMessage);
+        }
+        
+        // Update UI based on status
+        setProcessingStage(result.status);
+        setUploadProgress(result.progressPercent || 0);
+        
+        // Log the status check result to the database
+        await supabase.from('processing_logs').insert({
+          product_id: productId,
+          action: 'status_received',
+          details: { 
+            status: result.status,
+            progress: result.progressPercent || 0,
+            chunkCount: result.chunkCount || 0,
+            timestamp: new Date().toISOString() 
+          }
+        });
+        
+        // Add log based on status change
+        if (result.status === 'completed') {
+          addProcessingLog('completed', 'Processing completed successfully');
+          
+          // Log completion to database
+          await supabase.from('processing_logs').insert({
+            product_id: productId,
+            action: 'client_completed',
+            details: { 
+              timestamp: new Date().toISOString(),
+              source: 'qrcreationform'
+            }
+          });
+          
+          clearInterval(interval);
+          setStatusPollingInterval(null);
+          
+          // Complete the form submission process
+          await finishFormSubmission(productId);
+        } else if (result.status === 'failed') {
+          const errorDetails = result.metadata?.pdfProcessingError || 'Unknown error';
+          addProcessingLog('failed', `Processing failed: ${errorDetails}`);
+          
+          // Log failure to database
+          await supabase.from('processing_logs').insert({
+            product_id: productId,
+            action: 'client_processing_failed',
+            details: { 
+              timestamp: new Date().toISOString(),
+              error: errorDetails
+            }
+          });
+          
+          clearInterval(interval);
+          setStatusPollingInterval(null);
+          
+          // Show the failed dialog but allow the product to be created
+          setShowPdfProcessingFailedDialog(true);
+        } else {
+          // For stages: starting, uploading, extracting, chunking, embedding, etc.
+          // Only add a log if the stage changed
+          if (result.status !== processingStage) {
+            const stageMessages = {
+              'starting': 'Starting PDF processing',
+              'uploading': 'Uploading PDF to secure storage',
+              'extracting': 'Extracting text content from PDF',
+              'chunking': 'Splitting content into optimal chunks',
+              'embedding': 'Creating AI-searchable embeddings',
+              'processing': 'Processing document'  // Generic fallback
+            };
+            
+            const stageMessage = stageMessages[result.status as keyof typeof stageMessages] || 
+                              `Processing stage: ${result.status}`;
+            
+            addProcessingLog(result.status, stageMessage);
+            
+            // Log stage change to database
+            await supabase.from('processing_logs').insert({
+              product_id: productId,
+              action: 'client_stage_change',
+              details: { 
+                timestamp: new Date().toISOString(),
+                previousStage: processingStage,
+                newStage: result.status,
+                message: stageMessage
+              }
+            });
+          }
+        }
+      } catch (err: any) {
+        logError('Status polling', err);
+        
+        // Log error to database
+        await supabase.from('processing_logs').insert({
+          product_id: productId,
+          action: 'polling_error',
+          details: { 
+            timestamp: new Date().toISOString(),
+            error: err instanceof Error ? err.message : String(err)
+          }
+        }).then(({ error: dbErr }) => {
+          if (dbErr) logError('DB log error', dbErr);
+        });
+        
+        // Don't stop polling on error - it might be temporary
+        addProcessingLog('error', `Status check error: ${err.message}`);
+      }
+    }, 2000);
+    
+    setStatusPollingInterval(interval);
+  };
+
+  // Use cached data if available
+  useEffect(() => {
+    if (cachedData && initialLoad && !loading) {
+      // No need to restore form state from cache since this is a form
+      // but we can track the initialization
+      setInitialLoad(false);
+      
+      // Update the parent with form data if needed
+      if (onDataUpdate) {
+        onDataUpdate({ formInitialized: true });
+      }
+    }
+  }, [cachedData, initialLoad, loading, onDataUpdate]);
 
   // Verify the API endpoint is available when component mounts but don't show loading
   useEffect(() => {
@@ -49,222 +251,299 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
         // Do a preflight check of the API to ensure it's available
         const response = await fetch('/api/iqr/scan', { 
           method: 'OPTIONS',
-          headers: { 'Content-Type': 'application/json' }
         });
         
         if (response.ok) {
-          log('API endpoint /api/iqr/scan is available');
+          log('API endpoint check succeeded');
+          setApiStatus('idle');
         } else {
-          logError('API check', `API endpoint returned status ${response.status}`);
+          log('API endpoint check failed with status', response.status);
+          setApiStatus('idle');
         }
       } catch (err) {
-        logError('API check', err);
-      } finally {
+        logError('API endpoint check', err);
         setApiStatus('idle');
       }
     };
-
-    // Check the API silently without showing loading state
+    
+    // Only run this check once on mount
     checkApiEndpoint();
   }, []);
 
+  // Form validation logic
+  const isFormValid = () => {
+    return productName.trim().length > 0;
+  };
+
+  // Handle PDF file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && file.type !== 'application/pdf') {
-      setError('Only PDF files are supported');
-      return;
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        setError('Please select a valid PDF file.');
+        return;
+      }
+      
+      setSelectedFile(file);
+      setFileName(file.name);
     }
-    setSelectedFile(file);
-    setError(null);
-    setDetailedError(null);
-    log('File selected', { name: file?.name, size: file?.size });
+  };
+
+  const getProcessingStageName = (stage: string) => {
+    switch (stage) {
+      case 'starting': return 'Initializing';
+      case 'uploading': return 'Uploading PDF';
+      case 'extracting': return 'Extracting text';
+      case 'chunking': return 'Optimizing content';
+      case 'embedding': return 'Creating embeddings';
+      case 'completed': return 'Complete';
+      case 'failed': return 'Failed';
+      case 'processing': return 'Processing document';
+      default: return 'Processing';
+    }
+  };
+
+  const getProcessingStageIcon = (stage: string) => {
+    switch (stage) {
+      case 'completed':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'processing':
+      case 'chunking':
+      case 'embedding':
+        return <Cog className="h-4 w-4 animate-spin" />;
+      default:
+        return <Loader2 className="h-4 w-4 animate-spin" />;
+    }
   };
 
   const handleSubmitWithoutPdf = async () => {
     setShowFallbackDialog(false);
-    await submitForm();
+    
+    // Generate a product ID if we don't have one yet
+    const productId = createdProductId || uuidv4();
+    if (!createdProductId) {
+      setCreatedProductId(productId);
+    }
+    
+    // Finish submission without PDF processing
+    await finishFormSubmission(productId);
   };
-
-  const handleContinueWithoutPdfProcessing = () => {
+  
+  const handleContinueWithoutPdfProcessing = async () => {
     setShowPdfProcessingFailedDialog(false);
     
-    // Handle the success case with the existing product data
-    if (productCreationData) {
-      setUploadProgress(100);
-      setSuccess(`Product "${productName}" created successfully with QR code for tag: ${productCreationData.qrTextTag}. Note: PDF processing was skipped.`);
+    // Continue with finalizing the product even though PDF processing failed
+    if (createdProductId) {
+      await finishFormSubmission(createdProductId);
+    }
+  };
+  
+  const finishFormSubmission = async (productId: string) => {
+    setUploadProgress(90);
+    setProcessingStage('finalizing');
+    
+    addProcessingLog('finalizing', 'Finalizing product creation');
+    
+    setSuccess('Product created successfully!');
+    setLoading(false);
+    setSuccess('Your product has been created successfully!');
+    
+    // Clear form
+    setProductName('');
+    setProductDescription('');
+    setSystemPrompt('');
+    setSelectedFile(null);
+    setFileName("No file chosen");
+    setUploadProgress(0);
+    setProcessingStage('idle');
+    setProcessingLogs([]);
+    
+    // Generate QR Code for the product - with robust retries
+    let qrCodeSuccess = false;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (!qrCodeSuccess && attempts < maxAttempts) {
+      attempts++;
       
-      // Reset form
-      setProductName('');
-      setProductDescription('');
-      setSystemPrompt('');
-      setSelectedFile(null);
-      setLoading(false);
-      setRetryCount(0);
-      setProductCreationData(null);
+      try {
+        addProcessingLog('qrcode', attempts > 1 ? 
+          `Generating QR code for product (attempt ${attempts})` : 
+          'Generating QR code for product');
+        
+        const qrCodeResult = await generateQRCodeForProduct({
+          productId,
+          productName,
+          businessId
+        });
+        
+        if (qrCodeResult.success) {
+          qrCodeSuccess = true;
+          addProcessingLog('completed', 'QR code generated successfully');
+        } else {
+          addProcessingLog('warning', `QR code generation attempt ${attempts} failed: ${qrCodeResult.error}`);
+          console.error(`QR code generation attempt ${attempts} failed:`, qrCodeResult.error);
+          
+          if (attempts < maxAttempts) {
+            // Add a small delay between attempts
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      } catch (err: any) {
+        addProcessingLog('warning', `QR code generation attempt ${attempts} error: ${err.message}`);
+        console.error(`QR code generation attempt ${attempts} error:`, err);
+        
+        if (attempts < maxAttempts) {
+          // Add a small delay between attempts
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    
+    if (!qrCodeSuccess) {
+      addProcessingLog('error', `Failed to generate QR code after ${maxAttempts} attempts. The product was created but may need manual QR code generation.`);
+      
+      // Log this critical error to the database for monitoring
+      try {
+        await supabase.from('processing_logs').insert({
+          product_id: productId,
+          action: 'qr_code_generation_failed',
+          details: { 
+            timestamp: new Date().toISOString(),
+            attempts,
+            businessId
+          }
+        });
+      } catch (logErr) {
+        console.error('Error logging QR code failure:', logErr);
+      }
+    }
+    
+    // Reset product creation tracking
+    setCreatedProductId(null);
+    setProductCreationData(null);
+    
+    // Notify parent of data update
+    if (onDataUpdate) {
+      onDataUpdate({ 
+        productCreated: true,
+        productId
+      });
     }
   };
 
   const submitForm = async () => {
-    setError(null);
-    setDetailedError(null);
-    setSuccess(null);
-    setLoading(true);
-    setUploadProgress(0);
-    setProductCreationData(null);
-
-    log('Form submitted', { 
-      productName, 
-      fileSelected: !!selectedFile,
-      businessId,
-      retryCount 
-    });
-
     try {
-      if (!productName.trim()) {
-        throw new Error('Product name is required');
-      }
+      setLoading(true);
+      setError(null);
+      setDetailedError(null);
+      setShowFallbackDialog(false);
+      setProcessingLogs([]);
 
-      // Create FormData for API request
-      const formData = new FormData();
-      if (selectedFile) {
-        formData.append('file', selectedFile);
+      // Generate a product ID if we don't have one yet
+      const productId = createdProductId || uuidv4();
+      if (!createdProductId) {
+        setCreatedProductId(productId);
       }
+      
+      log('Starting product creation', { productId, businessId });
+      addProcessingLog('starting', 'Starting product creation');
+      
+      // Initial progress update
+      setUploadProgress(10);
+      setProcessingStage('starting');
+      setSuccess('Creating product...');
+      
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('productId', productId);
       formData.append('businessId', businessId);
       formData.append('productName', productName);
-      formData.append('productDescription', productDescription || '');
-      formData.append('systemPrompt', systemPrompt || '');
-      formData.append('skipPdfCheck', selectedFile ? 'false' : 'true');
-
-      // Use the fetch API with better error handling
+      formData.append('productDescription', productDescription);
+      formData.append('systemPrompt', systemPrompt);
+      formData.append('serviceType', 'product-pdf');
+      
+      // Add the file if it exists (PDF processing is optional)
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+        addProcessingLog('upload', `Uploading file: ${selectedFile.name} (${Math.round(selectedFile.size / 1024)} KB)`);
+      }
+      
+      setUploadProgress(20);
+      
       try {
-        log('Sending API request to /api/iqr/scan');
+        log('Starting PDF processing', { 
+          file: selectedFile?.name,
+          size: selectedFile?.size,
+          productId, 
+          businessId 
+        });
         
-        // Use regular fetch instead of XMLHttpRequest to avoid CORS issues
-        const baseUrl = typeof window !== 'undefined' 
-          ? `${window.location.protocol}//${window.location.host}`
-          : 'http://localhost:3000';
-        
-        const apiUrl = `${baseUrl}/api/iqr/scan`;
-        log(`Making request to absolute URL: ${apiUrl}`);
-        
-        // If no PDF, simulate progress
-        if (!selectedFile) {
-          setUploadProgress(50);
-        }
-        
-        const response = await fetch(apiUrl, {
+        // Call our new direct PDF processing endpoint
+        const response = await fetch('/api/iqr/pdf-process', {
           method: 'POST',
           body: formData,
         });
         
         if (!response.ok) {
-          const errorStatus = response.status;
-          let errorData = null;
-          
-          try {
-            errorData = await response.json();
-          } catch (e) {
-            // Unable to parse JSON response
-          }
-          
-          const errorMessage = errorData?.error || `Upload failed with status ${errorStatus}`;
-          
-          setDetailedError({
-            status: errorStatus,
-            statusText: response.statusText,
-            data: errorData
-          });
-          
-          // Only show fallback dialog for 405 errors
-          if (errorStatus === 405) {
-            setShowFallbackDialog(true);
-            setLoading(false);
-            return; // Exit early to prevent throwing the error
-          }
-          
-          throw new Error(errorMessage);
+          // If we get a network-level error, try the fallback approach
+          log('PDF processing request failed with status', response.status);
+          throw new Error(`Request failed with status ${response.status}`);
         }
         
         const result = await response.json();
-        log('API response received', result);
-        setProductCreationData(result);
+        log('PDF processing response', result);
         
-        // Simulate the rest of the process
-        setUploadProgress(80);
-
-        // Check if we have a PDF to process
-        if (selectedFile) {
-          // Poll PDF processing status
-          try {
-            const checkProcessingStatus = async () => {
-              // Mock function to check PDF processing status based on product ID
-              const response = await fetch(`/api/iqr/process-pdf/status?productId=${result.productId}`, {
-                method: 'GET',
-              }).catch(() => {
-                // If the API doesn't exist or there's a network error, assume processing failure
-                return { ok: false, status: 500 };
-              });
-              
-              if (!response.ok) {
-                // PDF processing likely failed
-                log('PDF processing check failed', { status: response.status });
-                // Show the PDF processing failed dialog
-                setShowPdfProcessingFailedDialog(true);
-                setLoading(false);
-                return;
-              }
-              
-              // If we got a successful response, continue with success flow
-              setUploadProgress(100);
-              setSuccess(`Product "${productName}" created successfully with QR code for tag: ${result.qrTextTag}`);
-              
-              // Reset form
-              setProductName('');
-              setProductDescription('');
-              setSystemPrompt('');
-              setSelectedFile(null);
-              setLoading(false);
-              setRetryCount(0);
-            };
-            
-            // Wait a moment before checking status (simulating async processing)
-            setTimeout(checkProcessingStatus, 2000);
-          } catch (statusError) {
-            // Fallback - if status check fails, show the dialog
-            logError('processingCheck', statusError);
-            setShowPdfProcessingFailedDialog(true);
-            setLoading(false);
-          }
-        } else {
-          // No PDF, just finish normally
-          setTimeout(() => {
-            setUploadProgress(100);
-            setSuccess(`Product "${productName}" created successfully without PDF with QR code for tag: ${result.qrTextTag}`);
-            
-            // Reset form
-            setProductName('');
-            setProductDescription('');
-            setSystemPrompt('');
-            setSelectedFile(null);
-            setLoading(false);
-            setRetryCount(0); // Reset retry count on success
-          }, 2000);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to process product');
         }
-      } catch (apiError: any) {
-        logError('apiCall', apiError);
-        throw apiError;
+        
+        // If we have a file, we need to monitor the processing status
+        if (selectedFile) {
+          addProcessingLog('submitted', 'PDF processing initiated');
+          
+          // Start polling for status updates
+          startStatusPolling(productId);
+        } else {
+          // No PDF processing needed, finish up
+          addProcessingLog('completed', 'Product created successfully');
+          await finishFormSubmission(productId);
+        }
+      } catch (processError: any) {
+        logError('PDF processing', processError);
+        setDetailedError(processError);
+        
+        if (processError.message.includes('status 413')) {
+          setError('The PDF file is too large. Please use a smaller file (< 10MB).');
+          // Reset loading state so user can try again
+          setLoading(false);
+          setUploadProgress(0);
+          setProcessingStage('idle');
+        } else if (selectedFile) {
+          // If we had a file, show the processing failed dialog
+          setShowPdfProcessingFailedDialog(true);
+        } else {
+          // No file and error, just show the error
+          setLoading(false);
+          setError('Failed to create product. Please try again.');
+          setProcessingStage('idle');
+        }
       }
-
     } catch (err: any) {
-      logError('formSubmission', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      logError('Submit form', err);
       setLoading(false);
+      setError('Failed to create product. Please try again.');
+      setDetailedError(err);
+      setUploadProgress(0);
+      setProcessingStage('idle');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    submitForm();
+    await submitForm();
   };
 
   const handleRetry = () => {
@@ -276,16 +555,16 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold mb-1">Create New Product</h2>
-        <p className="text-muted-foreground text-sm">
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="space-y-2 mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Create New Product</h1>
+        <p className="text-muted-foreground">
           Create a product with QR code for customers to access information. PDF documentation is optional.
         </p>
       </div>
       
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="space-y-2">
             <div>{error}</div>
@@ -325,124 +604,170 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
       )}
       
       {success && (
-        <Alert className="bg-green-600/20 text-green-600 border-green-600/10">
+        <Alert className="bg-green-600/20 text-green-600 border-green-600/10 mb-6">
           <FileText className="h-4 w-4" />
           <AlertDescription>{success}</AlertDescription>
         </Alert>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="productName">Product Name</Label>
-            <Input
-              id="productName"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="e.g., SmartWatch XYZ"
-              disabled={loading}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="fileUpload" className="flex items-center justify-between">
-              <span>Product Documentation (PDF)</span>
-              <div className="text-xs text-muted-foreground">
-                (Optional)
-              </div>
-            </Label>
-            <div className="flex items-center gap-2">
+      <form onSubmit={handleSubmit} className={loading ? 'space-y-8 opacity-50 pointer-events-none' : 'space-y-8'}>
+        <Card className="p-6 border-muted bg-card/30 backdrop-blur-sm">
+          <div className="grid gap-6">
+            <div className="grid gap-3">
+              <Label htmlFor="productName" className="text-sm font-medium">
+                Product Name
+              </Label>
               <Input
-                id="fileUpload"
-                type="file"
-                accept=".pdf"
-                onChange={handleFileChange}
+                id="productName"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="e.g., SmartWatch XYZ"
                 disabled={loading}
-                className="file:bg-iqr-200 file:text-black file:border-0 file:rounded file:px-2 file:py-1 file:mr-2 cursor-pointer"
+                required
+                className="border-input/50 bg-secondary/50"
               />
             </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid gap-3">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="fileUpload" className="text-sm font-medium">
+                    Product Documentation (PDF)
+                  </Label>
+                  <span className="text-xs text-muted-foreground">(Optional)</span>
+                </div>
+                <div className="flex gap-4 items-center">
+                  <div className="file-input-wrapper">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="relative flex gap-2 items-center"
+                      disabled={loading}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Choose file
+                      <input
+                        type="file"
+                        id="fileUpload"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        disabled={loading}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {selectedFile && (
+                      <FileText className="h-4 w-4 text-primary" />
+                    )}
+                    {fileName}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid gap-3">
+              <Label htmlFor="productDescription" className="text-sm font-medium">
+                Product Description
+              </Label>
+              <Textarea
+                id="productDescription"
+                value={productDescription}
+                onChange={(e) => setProductDescription(e.target.value)}
+                placeholder="Describe your product's features and intended use..."
+                disabled={loading}
+                rows={4}
+                className="border-input/50 bg-secondary/50 resize-none"
+              />
+            </div>
+            
+            <div className="grid gap-3">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="systemPrompt" className="text-sm font-medium">
+                  System Prompt
+                </Label>
+                <span className="text-xs text-muted-foreground">(Optional)</span>
+              </div>
+              <Textarea
+                id="systemPrompt"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="Custom instructions for the AI when responding to queries about this product..."
+                disabled={loading}
+                rows={4}
+                className="border-input/50 bg-secondary/50 resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Custom instructions for the AI when responding to queries about this product
+              </p>
+            </div>
           </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="productDescription">Product Description</Label>
-          <Textarea
-            id="productDescription"
-            value={productDescription}
-            onChange={(e) => setProductDescription(e.target.value)}
-            placeholder="Describe your product's features and intended use..."
-            disabled={loading}
-            rows={2}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="systemPrompt">
-            System Prompt (Optional)
-            <span className="ml-1 text-muted-foreground text-xs font-normal">
-              - Custom instructions for the AI when responding to queries about this product
-            </span>
-          </Label>
-          <Textarea
-            id="systemPrompt"
-            value={systemPrompt}
-            onChange={(e) => setSystemPrompt(e.target.value)}
-            placeholder="You are a helpful assistant for SmartWatch XYZ. Answer questions based on the product documentation..."
-            disabled={loading}
-            rows={3}
-          />
-        </div>
+        </Card>
         
         {loading && (
-          <div className="space-y-2">
-            <div className="text-sm flex justify-between text-muted-foreground mb-1">
-              <span>
-                {!selectedFile 
-                  ? (uploadProgress < 80 
-                      ? 'Creating product...' 
-                      : 'Generating QR code...')
-                  : (uploadProgress < 70 
-                      ? 'Uploading...' 
-                      : uploadProgress < 80 
-                        ? 'Processing PDF...' 
-                        : uploadProgress < 100 
-                          ? 'Generating QR code...' 
-                          : 'Finalizing...')}
-              </span>
-              <span>{uploadProgress}%</span>
+          <Card className="p-6 border-muted bg-slate-50/80 backdrop-blur-sm">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="font-medium text-sm">
+                    {processingStage === 'idle' ? 'Creating product...' : 
+                     processingStage === 'uploading' ? 'Uploading PDF...' : 
+                     processingStage === 'completed' ? 'Complete!' : 
+                     'Processing...'}
+                  </span>
+                </div>
+                {uploadProgress > 0 && (
+                  <Badge variant="outline" className="bg-white text-xs">{Math.round(uploadProgress)}%</Badge>
+                )}
+              </div>
+              
+              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-in-out rounded-full"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              
+              {/* Simple status message */}
+              {processingStage !== 'idle' && processingStage !== 'completed' && (
+                <p className="text-xs text-slate-500 text-center">
+                  {processingStage === 'uploading' ? 'Uploading document to secure storage' :
+                   processingStage === 'extracting' ? 'Extracting content from PDF' :
+                   processingStage === 'chunking' ? 'Preparing document for AI' :
+                   processingStage === 'embedding' ? 'Creating AI searchable data' :
+                   processingStage === 'failed' ? 'Processing failed, but product was created' :
+                   'Processing your document'}
+                </p>
+              )}
             </div>
-            <div className="w-full bg-iqr-100/30 rounded-full h-2.5">
-              <div 
-                className="bg-iqr-200 h-2.5 rounded-full transition-all duration-300 ease-in-out"
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
-            </div>
-          </div>
+          </Card>
         )}
         
-        <Button
-          type="submit"
-          className="bg-iqr-200 text-black hover:bg-iqr-200/80"
-          disabled={loading || apiStatus === 'checking'}
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : apiStatus === 'checking' ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Checking API...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Create Product
-            </>
-          )}
-        </Button>
+        <div className="flex justify-start">
+          <Button
+            type="submit"
+            className="bg-primary hover:bg-primary/90 gap-2"
+            disabled={loading || apiStatus === 'checking' || !isFormValid()}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : apiStatus === 'checking' ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking API...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                Create Product
+              </>
+            )}
+          </Button>
+        </div>
       </form>
       
       {/* Fallback Dialog for PDF Upload Issues */}
@@ -466,7 +791,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
               Cancel
             </Button>
             <Button 
-              className="bg-iqr-200 text-black hover:bg-iqr-200/80"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleSubmitWithoutPdf}
             >
               Create Without PDF
@@ -481,7 +806,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
           <DialogHeader>
             <DialogTitle>PDF Processing Issue</DialogTitle>
             <DialogDescription>
-              Your product and QR code were created successfully, but we encountered an issue processing the PDF document.
+              Your product was created successfully, but we encountered an issue processing the PDF document.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 text-sm text-muted-foreground">
@@ -490,7 +815,7 @@ export const QRCreationForm = ({ businessId }: QRCreationFormProps) => {
           </div>
           <DialogFooter className="mt-4 flex gap-2">
             <Button 
-              className="bg-iqr-200 text-black hover:bg-iqr-200/80"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleContinueWithoutPdfProcessing}
             >
               Continue

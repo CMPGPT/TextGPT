@@ -36,11 +36,11 @@ export const StatusCard = ({
   };
 
   return (
-    <Card className="bg-card text-card-foreground card-shadow border-0">
+    <Card className="bg-card text-card-foreground card-shadow border-0 max-w-3xl w-full mx-auto">
       <CardContent className="p-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="space-y-4 w-full">
+            <div className="flex flex-col items-center gap-3">
               <h3 className="text-xl font-semibold text-iqr-400">Toll Free Number: {tollFreeNumber}</h3>
               <Badge className={cn(
                 "text-xs font-medium py-1 px-2 rounded-md w-fit",
@@ -75,7 +75,7 @@ export const StatusCard = ({
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 mt-2">
             <Button
               onClick={onInfoClick}
               className="bg-iqr-200 text-black hover:bg-iqr-200/80 shrink-0"

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { getLogger } from '@/utils/logger';
+import { uploadPdfToStorage } from '@/utils/pdf-direct-processing';
+import { createAndStoreQRCode } from '@/utils/qrcode-helpers';
 
 // Initialize logger
 const logger = getLogger('api:iqr:scan');
@@ -23,7 +25,7 @@ function getMemoryUsage() {
 // Set up CORS headers for all responses
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
   'Access-Control-Max-Age': '86400',
 };
@@ -59,218 +61,173 @@ function handleApiError(error: any, message: string) {
 }
 
 export async function POST(request: NextRequest) {
-  logger.info('POST request received', { 
+  logger.info('POST request received', {
     contentType: request.headers.get('content-type'),
-    memory: getMemoryUsage()
+    memory: getMemoryUsage(),
   });
-  
+
   try {
-    // Validate Supabase connection early
-    if (!supabaseAdmin || typeof supabaseAdmin.from !== 'function') {
-      logger.error('Supabase client initialization failed');
-      return NextResponse.json(
-        { error: 'Database connection error.', details: 'Supabase client initialization failed' },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+    // Parse the form data
+    const formData = await request.formData();
+    logger.info('Form data successfully parsed');
 
-    let formData;
-    try {
-      formData = await request.formData();
-      logger.info('Form data successfully parsed');
-    } catch (error) {
-      return handleApiError(error, 'Failed to parse form data');
-    }
-
+    // Extract parameters from the form data
     const businessId = formData.get('businessId') as string;
     const productName = formData.get('productName') as string;
-    const productDescription = formData.get('productDescription') as string;
-    const systemPrompt = formData.get('systemPrompt') as string;
+    const productDescription = formData.get('productDescription') as string || '';
+    const systemPrompt = formData.get('systemPrompt') as string || '';
     const file = formData.get('file') as File;
     const skipPdfCheck = formData.get('skipPdfCheck') === 'true';
 
-    logger.info('Request parameters', { 
-      businessId, 
-      productName, 
+    // Validate required parameters
+    logger.info('Request parameters', {
+      businessId,
+      productName,
+      hasDescription: !!productDescription,
+      hasSystemPrompt: !!systemPrompt,
       hasFile: !!file,
       skipPdfCheck,
-      memory: getMemoryUsage()
+      memory: getMemoryUsage(),
     });
 
-    if (!businessId || !productName) {
-      logger.warn('Missing required fields', { businessId, productName });
+    if (!businessId || (!file && !skipPdfCheck)) {
+      logger.warn('Missing required parameters', { businessId, hasFile: !!file, skipPdfCheck });
       return NextResponse.json(
-        { error: 'Missing required fields: businessId, productName' },
+        { error: 'Business ID and PDF file are required (unless skipPdfCheck is true)' },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Generate unique IDs
+    // Generate IDs
     const productId = uuidv4();
-    const qrTextTag = `iqr_${productName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-6)}`;
+    const qrTextTag = `iqr_${productName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, '0')}`;
+
     logger.info('Generated IDs', { productId, qrTextTag });
 
-    // Create product entry
-    let productError = null;
+    // Create product entry in database
+    logger.info('Creating product entry in database');
     
-    try {
-      logger.info('Creating product entry in database');
-      const { error } = await supabaseAdmin
-        .from('products')
-        .insert({
-          id: productId,
-          business_id: businessId,
-          name: productName,
-          description: productDescription || null,
-          system_prompt: systemPrompt || null,
-          qr_text_tag: qrTextTag,
-          status: 'ready'
-        });
-      
-      productError = error;
-      
-      if (error) {
-        logger.error(`Product creation error`, { message: error.message });
-      } else {
-        logger.info(`Product created successfully`, { productId });
-      }
-    } catch (error) {
-      logger.error('Error creating product', { error, memory: getMemoryUsage() });
-      productError = error;
-    }
+    const { error: productError } = await supabaseAdmin.from('products').insert({
+      id: productId,
+      business_id: businessId,
+      name: productName,
+      description: productDescription,
+      system_prompt: systemPrompt,
+      qr_text_tag: qrTextTag,
+      pdf_processing_status: 'pending', // Initial status for PDF processing
+    });
 
     if (productError) {
+      logger.error('Product creation error', { message: productError.message });
       return NextResponse.json(
-        { error: `Failed to create product: ${productError.message || 'Database error'}` },
+        { error: `Failed to create product: ${productError.message}` },
         { status: 500, headers: corsHeaders }
       );
     }
 
-    // Upload PDF if provided
-    let pdfUrl = null;
-    let pdfPath = null;
+    // If file is provided, upload it to storage
+    if (file) {
+      logger.info('File provided, uploading to storage', { fileName: file.name, fileSize: file.size });
 
-    if (file && !skipPdfCheck) {
-      try {
-        // Check file type
-        if (!file.type.includes('pdf')) {
-          logger.warn('Invalid file type', { fileType: file.type });
-          return NextResponse.json(
-            { error: 'Only PDF files are allowed' },
-            { status: 400, headers: corsHeaders }
-          );
-        }
+      const uploadResult = await uploadPdfToStorage(file, {
+        productId,
+        businessId,
+        serviceType: 'iqr_scan',
+      });
 
-        // Check file size (max 10MB)
-        const maxSizeMB = 10;
-        const maxSizeBytes = maxSizeMB * 1024 * 1024;
-        if (file.size > maxSizeBytes) {
-          logger.warn('File too large', { size: file.size, maxSize: maxSizeBytes });
-          return NextResponse.json(
-            { error: `File size exceeds maximum of ${maxSizeMB}MB` },
-            { status: 400, headers: corsHeaders }
-          );
-        }
+      logger.info('Upload result details', { 
+        success: uploadResult.success, 
+        fileUrl: uploadResult.fileUrl,
+        path: uploadResult.path,
+        status: uploadResult.status
+      });
 
-        // Generate a unique file name
-        const fileId = uuidv4();
-        const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        pdfPath = `products/${productId}/${fileId}_${fileName}`;
-
-        // Get the file buffer
-        const arrayBuffer = await file.arrayBuffer();
-        const fileBuffer = Buffer.from(arrayBuffer);
-
-        // Upload to Supabase Storage
-        logger.info('Uploading file to Supabase Storage', { pdfPath });
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from('product-pdfs')
-          .upload(pdfPath, fileBuffer, {
-            contentType: file.type,
-            upsert: true
-          });
-
-        if (uploadError) {
-          logger.error('File upload failed', { error: uploadError });
-          // Continue without PDF as we've already created the product
-        } else {
-          // Get public URL
-          const { data: urlData } = supabaseAdmin.storage
-            .from('product-pdfs')
-            .getPublicUrl(pdfPath);
-
-          pdfUrl = urlData.publicUrl;
+      if (!uploadResult.success) {
+        logger.error('File upload error', { error: uploadResult.error });
+        
+        // Update product status to failed
+        await supabaseAdmin
+          .from('products')
+          .update({ pdf_processing_status: 'upload_failed' })
+          .eq('id', productId);
           
-          // Update product with PDF URL
-          const { error: updateError } = await supabaseAdmin
-            .from('products')
-            .update({
-              pdf_url: pdfUrl,
-              pdf_path: pdfPath
-            })
-            .eq('id', productId);
-
-          if (updateError) {
-            logger.error('Failed to update product with PDF URL', { error: updateError });
-            // Continue anyway, the PDF was uploaded
-          }
-          
-          logger.info('PDF uploaded and linked to product', { productId, pdfUrl });
-        }
-      } catch (uploadError) {
-        logger.error('Error processing PDF upload', { error: uploadError, memory: getMemoryUsage() });
-        // Continue without PDF as we've already created the product
+        return NextResponse.json(
+          { error: `File upload failed: ${uploadResult.error}` },
+          { status: 500, headers: corsHeaders }
+        );
       }
-    }
 
-    // Determine the base URL based on environment
-    const isProduction = process.env.NODE_ENV === 'production';
-    const baseUrl = isProduction 
-      ? 'https://textg.pt' 
-      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      logger.info('File uploaded successfully', { path: uploadResult.path });
 
-    // Generate the dynamic URL with product information and appropriate domain
-    const encodedProductName = encodeURIComponent(productName);
-    const chatUrl = `${baseUrl}/iqr/chat/${businessId}?sent=${encodedProductName}_describe`;
+      // Update product with PDF URL and path
+      const { data: updatedProduct, error: updateError } = await supabaseAdmin
+        .from('products')
+        .update({ 
+          pdf_url: uploadResult.fileUrl,
+          pdf_path: uploadResult.path,
+          pdf_processing_status: 'uploaded' // Explicitly set status to uploaded
+        })
+        .eq('id', productId)
+        .select('id, pdf_url, pdf_path')
+        .single();
 
-    logger.info(`Generated chat URL`, { chatUrl });
-
-    // Create default QR code with dynamic URL
-    let qrCreated = false;
-    
-    try {
-      logger.info('Creating QR code entry');
-      const { error } = await supabaseAdmin
-        .from('qr_codes')
-        .insert({
-          product_id: productId,
-          image_url: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(chatUrl)}`,
-          data: chatUrl
-        });
-      
-      if (error) {
-        logger.warn(`Failed to create QR code`, { error: error.message });
+      if (updateError) {
+        logger.error('Error updating product with PDF info', { error: updateError.message });
+        // Continue anyway since the file was uploaded
       } else {
-        logger.info(`QR code created successfully`, { productId });
-        qrCreated = true;
+        logger.info('Product updated with PDF info', { 
+          productId, 
+          updatedUrl: updatedProduct?.pdf_url,
+          updatedPath: updatedProduct?.pdf_path 
+        });
       }
-    } catch (error) {
-      logger.error('Error creating QR code', { error, memory: getMemoryUsage() });
     }
 
-    // Always return a success response if we've made it this far
-    logger.info('Sending successful response to client');
-    return NextResponse.json({
-      success: true,
-      productId,
-      qrTextTag,
-      qrCreated,
-      pdfUploaded: !!pdfUrl,
-      pdfUrl,
-      message: 'Product and QR code created successfully.'
-    }, { headers: corsHeaders });
+    // Create QR code entry
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://textg.pt';
+    const qrLink = `${baseUrl}/iqr/chat/${qrTextTag}`;
     
+    const qrCodeResult = await createAndStoreQRCode({
+      productId,
+      productName,
+      businessId,
+      qrTextTag
+    });
+    
+    if (!qrCodeResult.success) {
+      logger.error('QR code creation error', { error: qrCodeResult.error });
+      // Continue anyway since the product was created successfully
+    } else {
+      logger.info('QR code created successfully', { 
+        qrCodeId: qrCodeResult.data?.id,
+        qrUrl: qrCodeResult.data?.data
+      });
+    }
+
+    // Return success response
+    logger.info('Product and QR code created successfully', { 
+      productId, 
+      qrTextTag,
+      hasDescription: !!productDescription,
+      hasSystemPrompt: !!systemPrompt
+    });
+    
+    return NextResponse.json(
+      {
+        success: true,
+        productId,
+        qrCodeUrl: qrCodeResult.success ? qrCodeResult.data?.image_url : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrLink)}`,
+        qrTextTag,
+      },
+      { headers: corsHeaders }
+    );
   } catch (error) {
-    return handleApiError(error, 'An unexpected error occurred in scan API');
+    logger.error('Unexpected error in scan API', { error });
+    return NextResponse.json(
+      { error: 'An unexpected error occurred', details: error instanceof Error ? error.message : String(error) },
+      { status: 500, headers: corsHeaders }
+    );
   }
 } 

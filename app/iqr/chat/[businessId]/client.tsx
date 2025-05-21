@@ -54,13 +54,20 @@ export function ChatPageClient({ params }: ChatPageClientProps) {
     // Check for sent parameter in the URL
     const sentParam = searchParams.get('sent');
     if (sentParam) {
-      // Handle the pre-filled message format
-      // Format is expected to be 'ProductName_describe'
-      const parts = sentParam.split('_');
-      if (parts.length >= 2 && parts[1].toLowerCase() === 'describe') {
-        // Format message as "[Product] Describe"
-        const productName = decodeURIComponent(parts[0]);
-        setInitialMessage(`${productName} Describe`);
+      try {
+        // Handle any query format, not just "_describe"
+        const decodedParam = decodeURIComponent(sentParam);
+        
+        // More carefully replace URL-friendly formatting with spaces for readability
+        // Without accidentally removing % characters that might be part of valid URL encoding
+        const formattedMessage = decodedParam
+          .replace(/_/g, ' ') // Replace underscores with spaces
+          .replace(/%20/g, ' '); // Replace URL-encoded spaces with actual spaces
+        
+        setInitialMessage(formattedMessage);
+        console.log('Set initial message from URL param:', formattedMessage);
+      } catch (err) {
+        console.error('Error parsing sent parameter:', err, sentParam);
       }
     }
 
