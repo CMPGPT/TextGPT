@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, QrCode, Home as HomeIcon, ArrowRight, Smartphone, Phone, Menu, X } from "lucide-react";
 import FAQSection from "@/components/common/FAQSection";
+import { Layout } from "@/components/common/Layout";
 
 const messageIcon = "/icons/message-icon.png";
 
@@ -110,6 +111,7 @@ export default function TextGptLanding() {
       {/* This div serves as a spacer when the navbar becomes fixed */}
       {isScrolled && <div className="h-24 md:h-28" aria-hidden="true"></div>}
 
+      <main>
       <div className="container mx-auto px-6 pb-20 md:pb-28 max-w-7xl pt-10 md:pt-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="max-w-2xl">
@@ -433,49 +435,57 @@ export default function TextGptLanding() {
           </div>
         </div>
       </div>
+      </main>
 
-      <footer className="bg-textgpt-200 py-10 text-white/80">
+      <footer className="bg-gray-800 text-white/80 py-12">
         <div className="container mx-auto px-6 max-w-7xl">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-6 md:mb-0">
-              <MessageSquare size={24} className="text-textgpt-300 mr-2" />
-              <span className="text-xl font-bold text-white">TextG.pt</span>
+          <div className="flex flex-col md:flex-row justify-between items-start mb-8">
+            <div className="md:w-1/2 mb-8 md:mb-0 md:mr-12">
+              <div className="flex items-center mb-6">
+                <MessageSquare size={36} className="text-textgpt-300 mr-3" />
+                <span className="text-3xl font-bold text-white">TextG.pt</span>
+              </div>
+              <p className="text-white/70 text-sm md:text-base">
+                No apps, pure convenience. Message to organize, get answers, complete tasks. Your 24/7 personal assistant, always a text away.
+              </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-16 text-center md:text-left">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center md:text-left ml-auto">
               <div>
                 <h4 className="font-bold mb-4 text-white">Product</h4>
                 <ul className="space-y-2">
-                  <li><Link href="/iqr/landing" className="hover:text-textgpt-300">IQR.codes</Link></li>
-                  <li><Link href="/kiwi/landing" className="hover:text-textgpt-300">Kiwi</Link></li>
+                  <li><Link href="/iqr/landing" className="hover:text-textgpt-300 transition-colors">IQR.codes</Link></li>
+                  <li><Link href="/kiwi/landing" className="hover:text-textgpt-300 transition-colors">Kiwi</Link></li>
                 </ul>
               </div>
               <div>
                 <h4 className="font-bold mb-4 text-white">Company</h4>
                 <ul className="space-y-2">
-                  <li><a href="#about" className="hover:text-textgpt-300">About</a></li>
-                  <li><a href="#contact" className="hover:text-textgpt-300">Contact</a></li>
+                  <li><a href="#about" className="hover:text-textgpt-300 transition-colors">About</a></li>
+                  <li><a href="#contact" className="hover:text-textgpt-300 transition-colors">Contact</a></li>
                 </ul>
               </div>
-
               <div>
                 <h4 className="font-bold mb-4 text-white">Legal</h4>
                 <ul className="space-y-2">
-                  <li><Link href="/privacy" className="hover:text-textgpt-300">Privacy</Link></li>
-                  <li><Link href="/terms" className="hover:text-textgpt-300">Terms</Link></li>
+                  <li><Link href="/privacy" className="hover:text-textgpt-300 transition-colors">Privacy</Link></li>
+                  <li><Link href="/terms" className="hover:text-textgpt-300 transition-colors">Terms</Link></li>
                 </ul>
               </div>
-
-              <div>
+              <div className="min-w-[140px]">
                 <h4 className="font-bold mb-4 text-white">SMS</h4>
                 <ul className="space-y-2">
-                  <li><Link href="/start" className="hover:text-textgpt-300">Start SMS</Link></li>
-                  <li><Link href="/opt-in" className="hover:text-textgpt-300">Opt-In Process</Link></li>
+                  <li><Link href="/start" className="hover:text-textgpt-300 transition-colors">Start SMS</Link></li>
+                  <li><Link href="/opt-in" className="hover:text-textgpt-300 transition-colors">Opt-In Process</Link></li>
                 </ul>
               </div>
             </div>
           </div>
-          <div className="border-t border-white/10 mt-10 pt-8 text-center text-sm">
-            <p>&copy; {new Date().getFullYear()} TextG.pt. All rights reserved.</p>
+          
+          <div className="border-t border-white/10 pt-8">
+            <div className="text-center text-sm">
+              <p>&copy; {new Date().getFullYear()} ModoZilla LLC. All rights reserved.</p>
+              <p className="mt-2">TextG.pt is an AI-powered SMS platform by ModoZilla LLC.</p>
+            </div>
           </div>
         </div>
       </footer>

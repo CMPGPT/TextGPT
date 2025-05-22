@@ -310,8 +310,8 @@ export default function OptInPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-6 md:mb-0">
-              <MessageSquare size={24} className="text-textgpt-300 mr-2" />
-              <span className="text-xl font-bold text-white">TextG.pt</span>
+              <MessageSquare size={32} className="text-textgpt-300 mr-3" />
+              <span className="text-2xl font-bold text-white">TextG.pt</span>
             </div>
             
             <div className="flex flex-wrap justify-center md:justify-end gap-6">
@@ -332,7 +332,10 @@ export default function OptInPage() {
           
           <div className="mt-8 pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center">
             <p className="text-white/60 text-sm mb-4 md:mb-0">
-              © {new Date().getFullYear()} TextGPT. All rights reserved.
+              © 2025 ModoZilla LLC. All rights reserved.
+            </p>
+            <p className="text-white/60 text-sm mb-4 md:mb-0">
+              TextG.pt is an AI-powered SMS platform by ModoZilla LLC.
             </p>
             
 

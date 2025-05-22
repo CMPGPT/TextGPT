@@ -246,8 +246,8 @@ export default function KiwiLanding() {
         <div className="container mx-auto px-6 max-w-7xl">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-6 md:mb-0">
-              <HomeIcon size={24} className="text-kiwi-200 mr-2" />
-              <span className="text-xl font-bold text-white">Kiwi</span>
+              <HomeIcon size={32} className="text-kiwi-200 mr-3" />
+              <span className="text-2xl font-bold text-white">Kiwi</span>
             </div>
             <div className="flex flex-wrap justify-center gap-4 md:gap-8">
               <Link href="/" className="hover:text-kiwi-200">Home</Link>
@@ -259,7 +259,8 @@ export default function KiwiLanding() {
             </div>
           </div>
           <div className="border-t border-white/10 mt-10 pt-8 text-center text-sm">
-            <p>A service by <Link href="/" className="text-kiwi-200 hover:underline">TextG.pt</Link>. &copy; {new Date().getFullYear()} All rights reserved.</p>
+            <p>&copy; 2025 ModoZilla LLC. All rights reserved.</p>
+            <p className="mt-2">TextG.pt is an AI-powered SMS platform by ModoZilla LLC.</p>
           </div>
         </div>
       </footer>

@@ -262,8 +262,8 @@ export default function PrivacyPage() {
           <div className="flex flex-col md:flex-row justify-between">
             <div className="mb-6 md:mb-0">
               <Link href="/" className="flex items-center">
-            <MessageSquare size={24} className="text-textgpt-300 mr-2" />
-                <span className="text-xl font-bold">TextG.pt</span>
+            <MessageSquare size={32} className="text-textgpt-300 mr-3" />
+                <span className="text-2xl font-bold">TextG.pt</span>
               </Link>
               <p className="mt-4 text-gray-400">
                 AI-powered text response automation
@@ -296,7 +296,8 @@ export default function PrivacyPage() {
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} TextGPT. All rights reserved.</p>
+            <p>&copy; 2025 ModoZilla LLC. All rights reserved.</p>
+            <p className="mt-2">TextG.pt is an AI-powered SMS platform by ModoZilla LLC.</p>
           </div>
         </div>
       </footer>

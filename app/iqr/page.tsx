@@ -218,23 +218,55 @@ export default function IQRLanding() {
       <FAQSection faqs={iqrFaqs} variant="iqr" />
 
       {/* Footer */}
-      <footer className="bg-iqr-50 py-10 text-iqr-300">
+      <footer className="bg-gray-800 text-white/80 py-12">
         <div className="container mx-auto px-6 max-w-7xl">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-6 md:mb-0">
-              <QrCode size={24} className="text-iqr-200 mr-2" />
-              <span className="text-xl font-bold text-white">IQR.codes</span>
+          <div className="flex flex-col md:flex-row justify-between items-start mb-8">
+            <div className="md:w-1/2 mb-8 md:mb-0 md:mr-12">
+              <div className="flex items-center mb-6">
+                <QrCode size={36} className="text-iqr-200 mr-3" />
+                <span className="text-3xl font-bold text-white">IQR.codes</span>
+              </div>
+              <p className="text-white/70 text-sm md:text-base">
+                No apps, pure convenience. Message to organize, get answers, complete tasks. Your 24/7 personal assistant, always a text away.
+              </p>
             </div>
-            <div className="flex gap-8">
-              <Link href="/" className="hover:text-iqr-200 transition-colors">Home</Link>
-              <Link href="/privacy" className="hover:text-iqr-200 transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-iqr-200 transition-colors">Terms</Link>
-              <Link href="/start" className="hover:text-iqr-200 transition-colors">Start SMS</Link>
-              <Link href="/opt-in" className="hover:text-iqr-200 transition-colors">Opt-In Process</Link>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center md:text-left ml-auto">
+              <div>
+                <h4 className="font-bold mb-4 text-white">Product</h4>
+                <ul className="space-y-2">
+                  <li><Link href="/iqr/landing" className="hover:text-iqr-200 transition-colors">IQR.codes</Link></li>
+                  <li><Link href="/kiwi/landing" className="hover:text-iqr-200 transition-colors">Kiwi</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-bold mb-4 text-white">Company</h4>
+                <ul className="space-y-2">
+                  <li><Link href="/" className="hover:text-iqr-200 transition-colors">Home</Link></li>
+                  <li><a href="#" className="hover:text-iqr-200 transition-colors">Contact</a></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-bold mb-4 text-white">Legal</h4>
+                <ul className="space-y-2">
+                  <li><Link href="/privacy" className="hover:text-iqr-200 transition-colors">Privacy</Link></li>
+                  <li><Link href="/terms" className="hover:text-iqr-200 transition-colors">Terms</Link></li>
+                </ul>
+              </div>
+              <div className="min-w-[140px]">
+                <h4 className="font-bold mb-4 text-white">SMS</h4>
+                <ul className="space-y-2">
+                  <li><Link href="/start" className="hover:text-iqr-200 transition-colors">Start SMS</Link></li>
+                  <li><Link href="/opt-in" className="hover:text-iqr-200 transition-colors">Opt-In Process</Link></li>
+                </ul>
+              </div>
             </div>
           </div>
-          <div className="border-t border-iqr-100/30 mt-8 pt-8 text-center text-sm">
-            <p>&copy; {new Date().getFullYear()} IQR.codes. All rights reserved.</p>
+          
+          <div className="border-t border-white/10 pt-8">
+            <div className="text-center text-sm">
+              <p>&copy; {new Date().getFullYear()} ModoZilla LLC. All rights reserved.</p>
+              <p className="mt-2">TextG.pt is an AI-powered SMS platform by ModoZilla LLC.</p>
+            </div>
           </div>
         </div>
       </footer>
