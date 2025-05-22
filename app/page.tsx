@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, QrCode, Home as HomeIcon, ArrowRight, Smartphone, Phone, Menu, X } from "lucide-react";
 import FAQSection from "@/components/common/FAQSection";
-import { Layout } from "@/components/common/Layout";
 
 const messageIcon = "/icons/message-icon.png";
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageSquare, QrCode, Home as HomeIcon } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -11,7 +11,7 @@ export const Footer = () => {
               <MessageSquare size={36} className="text-textgpt-300 mr-3" />
               <span className="text-3xl font-bold text-white">TextG.pt</span>
             </div>
-            <p className="text-white/70 text-sm md:text-base mb-6">
+            <p className="text-white/70 text-sm md:text-base">
               TextG.pt provides AI-powered SMS communication solutions that work on any mobile device without requiring internet access or app downloads. 
               Our platform helps businesses, government agencies, and emergency services deliver critical information efficiently and accessibly.
             </p>
@@ -38,7 +38,7 @@ export const Footer = () => {
                 <li><Link href="/terms" className="hover:text-textgpt-300 transition-colors">Terms</Link></li>
               </ul>
             </div>
-            <div>
+            <div className="min-w-[140px]">
               <h4 className="font-bold mb-4 text-white">SMS</h4>
               <ul className="space-y-2">
                 <li><Link href="/start" className="hover:text-textgpt-300 transition-colors">Start SMS</Link></li>
