@@ -67,7 +67,7 @@ function generateUUID(): string {
  * Centralized PDF API handler that provides multiple operations through a single endpoint
  * Operations: upload, extract, process, status
  * - upload: Upload PDF to storage only
- * - extract: Extract text from uploaded PDF
+ * - extract: Extract text from uploaded PDF using Mistral OCR API
  * - process: End-to-end PDF processing (upload + extract + chunk + embed)
  * - status: Check processing status
  */
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Missing required product ID.' }, { status: 400 });
           }
           
-          console.log(`[/api/pdf-manual] Starting PDF text extraction`, {
+          console.log(`[/api/pdf-manual] Starting PDF text extraction with Mistral OCR API`, {
             productId,
             businessId,
             serviceType
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Missing required product ID.' }, { status: 400 });
           }
           
-          console.log(`[/api/pdf-manual] Starting end-to-end PDF processing:`, {
+          console.log(`[/api/pdf-manual] Starting end-to-end PDF processing with Mistral OCR API:`, {
             productId,
             businessId,
             serviceType,
@@ -265,11 +265,10 @@ export async function POST(req: NextRequest) {
     }, { status: 415 });
     
   } catch (error: any) {
-    console.error(`[/api/pdf-manual] Error:`, error);
+    console.error(`[/api/pdf-manual] Error in POST handler: ${error.message}`);
     return NextResponse.json({ 
       success: false, 
-      error: error.message || 'Unknown error',
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message || 'Unknown error'
     }, { status: 500 });
   }
 }

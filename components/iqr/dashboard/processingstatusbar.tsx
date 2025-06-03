@@ -33,7 +33,7 @@ const PROCESSING_STAGES: ProcessingStage[] = [
   {
     key: 'extracting',
     title: 'Processing for Extraction',
-    description: 'Sending document to Mistral AI for text extraction',
+    description: 'Sending document to Mistral AI OCR API for text extraction',
     icon: <Loader2 className="h-4 w-4 animate-spin" />
   },
   {

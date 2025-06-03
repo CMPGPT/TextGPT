@@ -3,32 +3,6 @@ import { OpenAI } from 'openai';
 import { MistralClient } from './mistral';
 import { TokenTextSplitter } from 'langchain/text_splitter';
 import { encode } from 'gpt-tokenizer';
-// Add pdf.js for direct PDF text extraction - Vercel compatible approach
-import { getDocument, GlobalWorkerOptions, PDFDocumentProxy } from 'pdfjs-dist';
-
-// We'll set the worker dynamically in a server-safe way
-let isWorkerInitialized = false;
-
-// Function to safely initialize the PDF.js worker
-function initPdfWorker() {
-  if (typeof window !== 'undefined' && !isWorkerInitialized) {
-    // We're in a browser environment
-    const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.entry');
-    GlobalWorkerOptions.workerSrc = pdfjsWorker;
-    isWorkerInitialized = true;
-  } else if (!isWorkerInitialized) {
-    // We're in a Node.js environment (for Vercel serverless functions)
-    try {
-      const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.entry');
-      GlobalWorkerOptions.workerSrc = pdfjsWorker;
-      isWorkerInitialized = true;
-    } catch (err) {
-      console.warn('[utils:pdf-direct] PDF.js worker initialization skipped in server environment');
-      // Server environment - worker will be initialized on the client if needed
-      isWorkerInitialized = true;
-    }
-  }
-}
 
 // Configure clients
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -282,7 +256,7 @@ export async function uploadPdfToStorage(
 }
 
 /**
- * Extracts text from a previously uploaded PDF using Mistral AI.
+ * Extracts text from a previously uploaded PDF using Mistral AI's OCR API.
  * This function should be called during the Extract step after upload is complete.
  */
 export async function extractTextFromPdf(
@@ -300,7 +274,7 @@ export async function extractTextFromPdf(
   } = {}
 ): Promise<PdfProcessingResult> {
   try {
-    console.log(`[utils:pdf-direct] Starting PDF text extraction`, {
+    console.log(`[utils:pdf-direct] Starting PDF text extraction with Mistral AI OCR API`, {
       productId,
       businessId,
       serviceType
@@ -389,10 +363,9 @@ export async function extractTextFromPdf(
     
     const fileUrl = publicUrlResult.data.publicUrl;
     
-    // Generate a signed URL for Mistral AI access with extended expiry
-    console.log(`[utils:pdf-direct] Creating signed URL for Mistral AI access`);
+    // Generate a signed URL for PDF download
+    console.log(`[utils:pdf-direct] Creating signed URL for PDF download`);
     let signedUrl;
-    let publicUrl;
     try {
       // First, create a longer-lived signed URL (30 minutes instead of 10)
       const signedUrlResult = await supabase
@@ -411,20 +384,6 @@ export async function extractTextFromPdf(
       }
       
       signedUrl = signedUrlResult.data.signedUrl;
-      publicUrl = publicUrlResult.data.publicUrl; // Keep both URLs handy
-      
-      // Validate the signed URL by making a test request
-      try {
-        const urlTest = await fetch(signedUrl, { method: 'HEAD' });
-        if (!urlTest.ok) {
-          console.warn(`[utils:pdf-direct] Signed URL test failed with status ${urlTest.status}`);
-        } else {
-          console.log(`[utils:pdf-direct] Signed URL validated successfully`);
-        }
-      } catch (urlTestErr: unknown) {
-        const errorMessage = urlTestErr instanceof Error ? urlTestErr.message : 'Unknown error';
-        console.warn(`[utils:pdf-direct] Signed URL validation error: ${errorMessage}`);
-      }
       
       console.log(`[utils:pdf-direct] Created signed URL successfully`);
     } catch (signedUrlError: any) {
@@ -442,119 +401,81 @@ export async function extractTextFromPdf(
       await options.updateProgress('extracting', 30);
     }
     
-    // Now download and extract text using pdf.js instead of Mistral
-    console.log(`[utils:pdf-direct] Downloading and extracting text from PDF using pdf.js`);
+    // Download the PDF and convert to base64 for Mistral
+    console.log(`[utils:pdf-direct] Downloading PDF for Mistral OCR processing`);
+    let pdfBase64: string;
     
     try {
-      // Download the PDF directly
-      const pdfResponse = await fetch(fileUrl);
+      // Download the PDF using the signed URL
+      const pdfResponse = await fetch(signedUrl);
       
       if (!pdfResponse.ok) {
         throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
       }
       
       const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-      const pdfData = new Uint8Array(pdfArrayBuffer);
+      const pdfBuffer = Buffer.from(pdfArrayBuffer);
       
-      // Initialize the PDF.js worker
-      initPdfWorker();
+      // Convert PDF to base64
+      pdfBase64 = pdfBuffer.toString('base64');
       
-      // Load the PDF document
-      const loadingTask = getDocument({ data: pdfData });
-      const pdfDocument = await loadingTask.promise as PDFDocumentProxy;
+      console.log(`[utils:pdf-direct] PDF converted to base64, size: ${Math.round(pdfBase64.length / 1024)}KB`);
       
-      console.log(`[utils:pdf-direct] PDF loaded successfully with ${pdfDocument.numPages} pages`);
-      
-      let extractedText = '';
-      
-      // Extract text from each page
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        if (options.updateProgress) {
-          const extractionPercent = Math.floor(30 + (pageNum / pdfDocument.numPages) * 50);
-          await options.updateProgress('extracting', extractionPercent);
-        }
-        
-        const page = await pdfDocument.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        // Concatenate text items
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        
-        extractedText += pageText + '\n\n';
+      // Update progress
+      if (options.updateProgress) {
+        await options.updateProgress('extracting', 40);
       }
-      
-      console.log(`[utils:pdf-direct] Text extraction successful`, { 
-        productId,
-        textLength: extractedText.length 
+    } catch (downloadError: any) {
+      console.error(`[utils:pdf-direct] Error downloading PDF: ${downloadError.message}`);
+      await updateProductStatus(productId, 'failed');
+      return {
+        success: false,
+        error: `Error downloading PDF: ${downloadError.message}`,
+        status: 'failed'
+      };
+    }
+    
+    // Process PDF with Mistral's OCR API
+    console.log(`[utils:pdf-direct] Sending PDF to Mistral AI OCR API for text extraction`);
+    let extractedText = '';
+    let pageCount = 0;
+    
+    try {
+      // Use Mistral OCR API to extract text
+      const ocrResponse = await mistralClient.ocr({
+        model: 'mistral-ocr-latest',
+        document: {
+          type: 'document_url',
+          document_url: `data:application/pdf;base64,${pdfBase64}`
+        },
+        include_image_base64: false // Set to true if you want image data too
       });
       
-      if (options.updateProgress) {
-        await options.updateProgress('processing', 85);
-      }
+      // Extract text from all pages and combine
+      extractedText = ocrResponse.pages.map(page => page.markdown).join('\n\n');
+      pageCount = ocrResponse.pages.length;
       
-      // Optional: Use Mistral AI to enhance the extracted text
-      // Since Mistral can't access the PDF directly, we can still use it to clean up and format the extracted text
-      try {
-        if (extractedText.length > 0) {
-          const enhancementPrompt = `I have extracted text from a PDF document using an OCR tool. The extracted text may have formatting issues, missing line breaks, or other artifacts. Please clean and format this text to make it more readable while preserving all the original content and meaning. Here is the extracted text:\n\n${extractedText}`;
-
-          const enhancementResponse = await mistralClient.chat.completions.create({
-            model: 'mistral-large-latest',
-            messages: [
-              { 
-                role: 'system', 
-                content: 'You are a text formatting assistant. Your task is to clean up and format extracted PDF text while preserving all original content.' 
-              },
-              { role: 'user', content: enhancementPrompt }
-            ],
-            max_tokens: 8000,
-            temperature: 0.1
-          });
-
-          if (enhancementResponse.choices[0]?.message?.content) {
-            const enhancedText = enhancementResponse.choices[0].message.content.trim();
-            // Only use the enhanced text if it's not significantly shorter (would indicate content loss)
-            if (enhancedText.length > extractedText.length * 0.8) {
-              console.log('[utils:pdf-direct] Successfully enhanced extracted text with Mistral AI');
-              extractedText = enhancedText;
-            } else {
-              console.log('[utils:pdf-direct] Mistral enhancement rejected, using original extracted text');
-            }
-          }
-        }
-      } catch (enhancementError) {
-        // If enhancement fails, just use the original extracted text
-        console.error(`[utils:pdf-direct] Text enhancement failed, using original text: ${enhancementError}`);
-      }
+      console.log(`[utils:pdf-direct] OCR extraction complete: ${pageCount} pages processed`);
       
       if (!extractedText) {
-        console.error(`[utils:pdf-direct] No text extracted from PDF`);
+        console.error(`[utils:pdf-direct] No text extracted from PDF by Mistral OCR`);
         await updateProductStatus(productId, 'failed');
         return { 
           success: false, 
-          error: 'No text extracted from PDF',
+          error: 'No text extracted from PDF by Mistral OCR',
           status: 'failed'
         };
       }
-
-      // This is already set from PDF.js extraction above
       
-      console.log(`[utils:pdf-direct] Text extraction successful`, { 
+      console.log(`[utils:pdf-direct] Text extraction successful with Mistral OCR`, { 
         productId,
-        textLength: extractedText.length 
+        textLength: extractedText.length,
+        pageCount
       });
       
       if (options.updateProgress) {
-        await options.updateProgress('processing', 40);
+        await options.updateProgress('processing', 80);
       }
-      
-      // Get file info for metadata
-      const { data: fileInfo } = await supabase
-        .storage
-        .from(selectedBucketId)
-        .getPublicUrl(storagePath);
       
       // First verify product exists in the database to avoid foreign key constraint error
       const { data: productExists, error: productCheckError } = await supabase
@@ -564,7 +485,7 @@ export async function extractTextFromPdf(
         .single();
 
       if (productCheckError) {
-        console.error(`[utils:pdf-direct] Product does not exist: ${productId}. Creating product record first.`);
+        console.log(`[utils:pdf-direct] Product does not exist: ${productId}. Creating product record first.`);
         
         // Insert product record using values from options if available
         const { error: productInsertError } = await supabase
@@ -598,14 +519,14 @@ export async function extractTextFromPdf(
           business_id: businessId,
           raw_text: extractedText,
           source_url: fileUrl,
-          extraction_method: 'pdf_js_direct',
+          extraction_method: 'mistral_ocr',
           metadata: { 
             timestamp: new Date().toISOString(),
             service_type: serviceType,
             extraction_complete: true,
             needs_chunking: true,
             needs_embedding: true,
-            page_count: pdfDocument.numPages
+            page_count: pageCount
           }
         })
         .select('id')
@@ -624,11 +545,6 @@ export async function extractTextFromPdf(
       const extractedTextId = textData.id;
       
       if (options.updateProgress) {
-        await options.updateProgress('chunking', 60);
-      }
-      
-      // Update progress for completion of extraction
-      if (options.updateProgress) {
         await options.updateProgress('completed', 100);
       }
       
@@ -639,22 +555,6 @@ export async function extractTextFromPdf(
         chunkCount: 0 // Will be updated by dedicated chunking and embedding endpoints
       };
       
-      if (!embeddingResult.success) {
-        return {
-          success: false,
-          fileUrl,
-          path: storagePath,
-          extractedTextId,
-          error: embeddingResult.error || 'Unknown embedding error',
-          status: 'failed'
-        };
-      }
-      
-      console.log(`[utils:pdf-direct] PDF processing completed successfully`, {
-        productId,
-        chunkCount: embeddingResult.chunkCount
-      });
-      
       // Update product status to completed
       await updateProductStatus(productId, 'completed');
       
@@ -663,15 +563,16 @@ export async function extractTextFromPdf(
         fileUrl,
         path: storagePath,
         extractedTextId,
-        chunkCount: embeddingResult.chunkCount,
+        chunkCount: 0, // Will be updated after chunking
         status: 'completed'
       };
+      
     } catch (extractionError: any) {
-      console.error(`[utils:pdf-direct] Text extraction failed: ${extractionError.message}`);
+      console.error(`[utils:pdf-direct] Mistral OCR extraction failed: ${extractionError.message}`);
       await updateProductStatus(productId, 'failed');
       return { 
         success: false, 
-        error: `Text extraction failed: ${extractionError.message}`,
+        error: `Mistral OCR extraction failed: ${extractionError.message}`,
         status: 'failed'
       };
     }
@@ -1074,8 +975,8 @@ export async function processPdfEndToEnd(
       return uploadResult;
     }
 
-    // 2. Extract text from PDF using the direct method
-    console.log(`[utils:pdf-direct] Step 2: Extracting text from PDF`);
+    // 2. Extract text from PDF using Mistral OCR API
+    console.log(`[utils:pdf-direct] Step 2: Extracting text from PDF using Mistral OCR API`);
     if (options.updateProgress) {
       await options.updateProgress('extracting', 40);
     }
@@ -1115,7 +1016,7 @@ export async function processPdfEndToEnd(
       };
     }
 
-    // IMPORTANT: Unlike what the comment previously said, the text extraction process does NOT handle chunking and embedding
+    // IMPORTANT: Mistral OCR extraction does not handle chunking and embedding
     // We need to explicitly perform these steps for end-to-end processing
     
     // 3. Fetch the extracted text from the database

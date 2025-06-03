@@ -155,25 +155,34 @@ export async function POST(req: NextRequest) {
     let relevantChunks = [];
     try {
       const embedding = await generateEmbedding(userQuery);
-      console.log(`[API] Generated embedding for vector search`);
+      console.log(`[API] Generated embedding for vector search using model: text-embedding-ada-002`);
       
       // Use match_pdf_chunks_all RPC function for vector search across all products
       const { data: matchingChunks, error: matchError } = await supabase.rpc(
         'match_pdf_chunks_all',
         {
           query_embedding: embedding,
-          match_threshold: 0.5,
-          match_count: 5
+          match_threshold: 0.3,
+          match_count: 10
         }
       );
+      
+      console.log(`[API] Vector search params: model=text-embedding-ada-002, threshold=0.3, count=10`);
       
       if (matchError) {
         console.error('[API] Error with vector search:', matchError);
       } else if (matchingChunks && matchingChunks.length > 0) {
-        // Filter to only include chunks for this business if needed
-        const filteredChunks = matchingChunks.filter((chunk: any) => 
-          !chunk.business_id || chunk.business_id === business_id
-        );
+        console.log(`[API] Raw vector matches:`, matchingChunks.map((c: any) => ({
+          id: c.id,
+          product_id: c.product_id,
+          similarity: c.similarity
+        })));
+        
+        // Filter to only include chunks for this business's products
+        const filteredChunks = matchingChunks.filter((chunk: any) => {
+          const product = productsData.find(p => p.id === chunk.product_id);
+          return product !== undefined; // Only include chunks from products that belong to this business
+        });
         relevantChunks = filteredChunks;
         console.log(`[API] Found ${filteredChunks.length} relevant PDF chunks via vector search for this business`);
       } else {
@@ -185,8 +194,9 @@ export async function POST(req: NextRequest) {
       // Fallback to a regular query
       const { data: fallbackChunks, error: fallbackError } = await supabase
         .from('pdf_chunks')
-        .select('content, metadata')
-        .eq('business_id', business_id)
+        .select('content, metadata, product_id')
+        .in('product_id', productsData.map(p => p.id))
+        .order('created_at', { ascending: false })
         .limit(5);
       
       if (!fallbackError && fallbackChunks) {
@@ -378,7 +388,7 @@ export async function POST(req: NextRequest) {
 // Helper function to generate embeddings using OpenAI
 async function generateEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
+    model: 'text-embedding-ada-002',
     input: text,
   });
   

@@ -314,7 +314,7 @@ export default function PdfManualProcessingPage() {
             break;
           case 'extracting':
             overallProgress = 25 + (percent * 0.25); // 25-50%
-            setSuccess('Extracting text from PDF using Mistral AI...');
+            setSuccess('Extracting text from PDF using Mistral AI OCR API...');
             break;
           case 'chunking':
             overallProgress = 50 + (percent * 0.25); // 50-75%
@@ -580,7 +580,7 @@ export default function PdfManualProcessingPage() {
 
                   <TabsContent value="extract" className="space-y-4">
                     <p className="text-sm text-gray-500">
-                      Extract text from the uploaded PDF file using Mistral AI.
+                      Extract text from the uploaded PDF file using Mistral AI OCR API.
                     </p>
                     <Button 
                       onClick={handleExtract} 

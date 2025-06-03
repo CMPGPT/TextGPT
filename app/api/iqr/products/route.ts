@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripeClient } from '@/lib/stripe';
-import { createClient } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import type Stripe from 'stripe';
 
 // Force dynamic execution for this route
@@ -8,6 +8,14 @@ export const dynamic = "force-dynamic";
 
 // The specific product ID we want to fetch
 const IQR_PRODUCT_ID = 'prod_SKUcmFulvJlPM6';
+
+// Define the Product type
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  system_prompt?: string;
+}
 
 /**
  * GET endpoint to fetch IQR products from Stripe
@@ -17,44 +25,50 @@ export async function GET(req: NextRequest) {
     // Get query parameters
     const url = new URL(req.url);
     const businessId = url.searchParams.get('businessId');
+    const includeBusinessInfo = url.searchParams.get('businessInfo') === 'true';
     
-    // Fetch the product from Stripe
-    const product = await stripeClient.products.retrieve(IQR_PRODUCT_ID);
+    // Initialize Supabase client if we need business data
+    const supabase = businessId ? createServerSupabaseClient() : null;
     
-    if (!product || product.active === false) {
-      return NextResponse.json(
-        { error: 'Product not available' },
-        { status: 404 }
-      );
+    // If we need to return business information
+    let business = null;
+    if (includeBusinessInfo && businessId && supabase) {
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .select('id, name, website_url, support_email, support_phone')
+        .eq('id', businessId)
+        .single();
+      
+      if (!businessError && businessData) {
+        business = businessData;
+      } else if (businessError) {
+        console.error('Error fetching business:', businessError);
+      }
     }
     
-    // Fetch prices for this product
-    const prices = await stripeClient.prices.list({
-      product: product.id,
-      active: true,
-      type: 'recurring',
-    });
+    // If only business info was requested and we have it, return early
+    if (includeBusinessInfo && !url.searchParams.has('includeProducts') && business) {
+      return NextResponse.json({ business });
+    }
     
-    // Format product details with prices
-    const productDetails = {
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      image: product.images?.[0] || null,
-      prices: prices.data.map((price: Stripe.Price) => ({
-        id: price.id,
-        amount: price.unit_amount ? price.unit_amount / 100 : 0,
-        currency: price.currency,
-        interval: price.recurring?.interval || 'month',
-        interval_count: price.recurring?.interval_count || 1,
-      })),
-      metadata: product.metadata,
-    };
+    // If businessId is provided, fetch products for that business from Supabase
+    let products: Product[] = [];
+    if (businessId && supabase) {
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, description, system_prompt')
+        .eq('business_id', businessId);
+      
+      if (!productsError && productsData) {
+        products = productsData as Product[];
+      } else {
+        console.error('Error fetching business products:', productsError);
+      }
+    }
     
-    // If businessId is provided, check if the business already has a subscription
+    // Fetch subscription status if businessId is provided
     let subscriptionStatus = null;
-    if (businessId) {
-      const supabase = createClient();
+    if (businessId && supabase) {
       const { data, error } = await supabase
         .from('businesses')
         .select('subscription_status')
@@ -66,14 +80,16 @@ export async function GET(req: NextRequest) {
       }
     }
     
+    // Return the response with all requested data
     return NextResponse.json({
-      product: productDetails,
+      products,
+      business,
       subscriptionStatus,
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Error in products API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch products' },
+      { error: 'An error occurred while processing your request' },
       { status: 500 }
     );
   }

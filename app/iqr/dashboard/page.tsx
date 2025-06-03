@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { StatusCard } from '@/components/iqr/dashboard/statuscard';
+import { BalanceCard } from '@/components/iqr/dashboard/balancecard';
 import { Header } from '../layout/header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BusinessInfoModal } from '@/components/iqr/dashboard/businessinfomodal';
@@ -425,7 +426,7 @@ function IQRDashboardContent() {
       <Header subscriptionStatus={businessInfo.subscription_status === 'active' ? 'active' : 'inactive'} />
       <div className="mt-6 space-y-8">
         {/* User section (never refreshed after initial load) */}
-        <div className="flex justify-center">
+        <div className="flex flex-col md:flex-row justify-center gap-4">
           <StatusCard 
             onInfoClick={() => setBusinessInfoOpen(true)}
             tollFreeNumber={businessInfo.iqr_number || 'Not assigned'}
@@ -433,6 +434,12 @@ function IQRDashboardContent() {
             userName={userName}
             description={`IQR Dashboard for ${businessInfo.name}'s product information and customer support.`}
             businessName={businessInfo.name}
+          />
+          <BalanceCard 
+            creditValue="$10.00"
+            lastSubscriptionDate="2024-05-01"
+            totalMessages={1234}
+            onAddCredit={() => alert('Add credit clicked!')}
           />
         </div>
         

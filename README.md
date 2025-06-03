@@ -139,7 +139,7 @@ The PDF processing flow has been centralized for better maintainability and feat
 
 ### 2. Text Extraction
 
-- The PDF URL is sent to Mistral AI for text extraction
+- The PDF URL is sent to Mistral AI's OCR API for text extraction
 - The extracted text is temporarily stored for the next step
 - Processing status is tracked in the products table
 
@@ -178,7 +178,7 @@ The centralized utilities are in `utils/pdf-processing.ts` and include:
 
 - `validatePdfFile`: Validates file type and size
 - `uploadPdfToStorage`: Uploads a PDF to Supabase Storage
-- `extractTextFromPdf`: Extracts text from a PDF using Mistral AI
+- `extractTextFromPdf`: Extracts text from a PDF using Mistral AI's OCR API
 - `chunkText`: Splits text into chunks for embedding
 - `generateEmbeddings`: Generates embeddings for text chunks
 - `processPdfEndToEnd`: Orchestrates the entire process

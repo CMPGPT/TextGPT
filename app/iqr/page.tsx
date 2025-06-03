@@ -8,6 +8,7 @@ import { MessageSquare, QrCode, Phone, Edit } from "lucide-react";
 import FAQSection from "@/components/common/FAQSection";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from "next/navigation";
+import { RotateLoader } from "react-spinners";
 
 const messageIcon = "/icons/message-icon.png";
 
@@ -34,7 +35,7 @@ export default function IQRLanding() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-iqr-100 to-black flex items-center justify-center">
-        <div className="animate-pulse text-iqr-200 text-xl">Loading...</div>
+        <RotateLoader color="#E59615" />
       </div>
     );
   }
