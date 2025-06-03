@@ -68,6 +68,7 @@ function IQRDashboardContent() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false); // Track if refresh is in progress
   const [lastRefreshTime, setLastRefreshTime] = useState(0); // Track last refresh time
+  const [userId, setUserId] = useState<string>(''); // Store the user ID
   
   // Use useRef to maintain tab cache throughout component lifecycle
   const tabCache = useRef<TabCacheData>({
@@ -206,6 +207,9 @@ function IQRDashboardContent() {
             router.push('/iqr/login');
             return;
           }
+          
+          // Store the user ID for later use
+          setUserId(session.user.id);
           
           // Fetch user information using RPC function for complete profile
           const { data: profile, error: profileError } = await supabase
@@ -436,10 +440,9 @@ function IQRDashboardContent() {
             businessName={businessInfo.name}
           />
           <BalanceCard 
-            creditValue="$10.00"
-            lastSubscriptionDate="2024-05-01"
-            totalMessages={1234}
-            onAddCredit={() => alert('Add credit clicked!')}
+            businessId={businessInfo.id}
+            userId={userId}
+            onRefresh={() => handleRefresh()}
           />
         </div>
         

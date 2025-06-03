@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripeClient } from '@/lib/stripe';
+import { stripe as _stripe } from "@/lib/stripe/index";
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import type Stripe from 'stripe';
 
 // Force dynamic execution for this route
 export const dynamic = "force-dynamic";
 
 // The specific product ID we want to fetch
-const IQR_PRODUCT_ID = 'prod_SKUcmFulvJlPM6';
+// const IQR_PRODUCT_ID = process.env.STRIPE_IQR_PRODUCT_ID || 'prod_OkwwzPeF7Gzhqn';
 
 // Define the Product type
 interface Product {

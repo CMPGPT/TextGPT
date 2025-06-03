@@ -126,6 +126,22 @@ export async function POST(req: NextRequest) {
     
     console.log(`[API] Successfully retrieved business information: ${businessData.name}`);
     
+    // New Step: Get the business user_id for proper message attribution
+    const { data: businessUser, error: businessUserError } = await supabase
+      .from('iqr_users')
+      .select('id')
+      .eq('business_id', business_id)
+      .limit(1)
+      .single();
+
+    let business_user_id: string | null = null;
+    if (businessUserError) {
+      console.warn('[API] Could not find user for business:', businessUserError);
+    } else if (businessUser) {
+      business_user_id = businessUser.id;
+      console.log(`[API] Found business user_id: ${business_user_id}`);
+    }
+    
     // Step 2: Get all products for the business
     console.log(`[API] Fetching products for business ${business_id}`);
     const { data: fetchedProducts, error: productsError } = await supabase
@@ -345,6 +361,7 @@ export async function POST(req: NextRequest) {
         business_id,
         product_id: null, // No specific product
         user_phone: anonymous_id,
+        user_id: business_user_id, // Add user_id for proper message attribution
         role: 'user',
         content: userQuery
       });
@@ -360,6 +377,7 @@ export async function POST(req: NextRequest) {
         business_id,
         product_id: null, // No specific product
         user_phone: anonymous_id,
+        user_id: business_user_id, // Add user_id for proper message attribution
         role: 'assistant',
         content: aiResponse,
         metadata: functionCallUsed ? { function_call_used: true } : undefined
