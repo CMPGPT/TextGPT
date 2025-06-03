@@ -76,7 +76,11 @@ export async function POST(req: NextRequest) {
     }
     
     // Make sure we have a base URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                    process.env.NEXT_PUBLIC_BASE_URL || 
+                    process.env.NEXT_PUBLIC_APP_URL || 
+                    req.nextUrl.origin || 
+                    'https://textg.pt';
     
     // Checkout session parameters
     const sessionParams: Stripe.Checkout.SessionCreateParams = {

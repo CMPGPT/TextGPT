@@ -99,9 +99,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Base URL for success/cancel redirects
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                 process.env.NEXT_PUBLIC_BASE_URL || 
+                 process.env.NEXT_PUBLIC_APP_URL || 
                  req.headers.get('origin') || 
-                 'http://localhost:3000';
+                 'https://textg.pt';
 
     // Create checkout session
     const checkoutSession = await stripe.checkout.sessions.create({
