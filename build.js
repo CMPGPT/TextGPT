@@ -30,7 +30,7 @@ for (const type of requiredTypes) {
 // Check if necessary LangChain dependencies are installed
 const requiredDependencies = [
   { name: '@langchain/core', version: '0.2.11' },
-  { name: '@langchain/textsplitters', version: '0.1.5' }
+  { name: '@langchain/textsplitters', version: '0.1.0' }
 ];
 for (const dep of requiredDependencies) {
   try {
