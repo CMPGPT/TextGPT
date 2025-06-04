@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui-shadcn/Button';
+import { Input } from '@/components/ui-shadcn/Input';
+import { Label } from '@/components/ui-shadcn/Label';
+import { Alert, AlertDescription } from '@/components/ui-shadcn/Alert';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui-shadcn/Card';
 import Cookies from 'js-cookie';
 
 export default function LoginPage() {
