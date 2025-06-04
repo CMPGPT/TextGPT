@@ -1,17 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm install && npm install --no-save typescript @types/node @types/react",
   "framework": "nextjs",
+  "buildCommand": "node build.js",
+  "installCommand": "npm install",
   "crons": [
     {
       "path": "/api/iqr/qr-codes/process-queue?secret=${QR_CODE_UPDATE_SECRET}",
       "schedule": "*/15 * * * *"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
