@@ -7,10 +7,9 @@ import Stripe from 'stripe';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Force production mode for webhook processing
-const IS_DEVELOPMENT = false; // Override environment check
-// Flag for development mode
-// const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+// Use environment variable instead of hard-coded value
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+console.log('Webhook environment mode:', process.env.NODE_ENV);
 
 // Helper function to validate Supabase connection
 function validateSupabaseEnv() {
