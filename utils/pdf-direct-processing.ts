@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { OpenAI } from 'openai';
 import { MistralClient } from './mistral';
-import { TokenTextSplitter } from 'langchain/text_splitter';
+import { TokenTextSplitter } from '@langchain/textsplitters';
 import { encode } from 'gpt-tokenizer';
 
 // Configure clients

@@ -1,4 +1,4 @@
-import { RecursiveCharacterTextSplitter, TokenTextSplitter } from 'langchain/text_splitter';
+import { RecursiveCharacterTextSplitter, TokenTextSplitter } from '@langchain/textsplitters';
 import { createClient } from '@supabase/supabase-js';
 import { OpenAI } from 'openai';
 
